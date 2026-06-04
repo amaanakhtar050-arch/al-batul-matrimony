@@ -92,6 +92,18 @@
       },
       "required": ["fromUserId", "toUserId", "status"]
     },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Individual messages within a private chat conversation.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean", "default": false }
+      },
+      "required": ["text", "senderId", "timestamp"]
+    },
     "PlatformSettings": {
       "title": "Platform Settings",
       "description": "Global configuration settings for the Al Batul platform.",
@@ -120,6 +132,10 @@
     "/interests/{interestId}": {
       "schema": "InterestRequest",
       "description": "Stores interest requests and matching status."
+    },
+    "/interests/{interestId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Stores real-time messages for an accepted match conversation."
     },
     "/settings/platform": {
       "schema": "PlatformSettings",
