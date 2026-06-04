@@ -3,14 +3,14 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Comprehensive profile information for Al Batul members.",
+      "description": "Comprehensive profile information for Al Batul members including partner preferences.",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "age": { "type": "number" },
         "gender": { "type": "string", "enum": ["Male", "Female"] },
-        "maritalStatus": { "type": "string" },
-        "sect": { "type": "string" },
+        "maritalStatus": { "type": "string", "enum": ["Single", "Divorced", "Widowed"] },
+        "sect": { "type": "string", "enum": ["Sunni", "Shia", "Other"] },
         "education": { "type": "string" },
         "occupation": { "type": "string" },
         "city": { "type": "string" },
@@ -27,6 +27,14 @@
           "properties": {
             "plan": { "type": "string", "enum": ["Free", "Gold", "Platinum"] },
             "expiresAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "minAge": { "type": "number" },
+            "maxAge": { "type": "number" },
+            "sect": { "type": "string" }
           }
         },
         "createdAt": { "type": "string", "format": "date-time" }
