@@ -3,7 +3,7 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Comprehensive profile information for Al Batul members including partner preferences.",
+      "description": "Comprehensive profile information for Al Batul members including partner preferences and lifestyle.",
       "type": "object",
       "properties": {
         "fullName": { "type": "string" },
@@ -16,6 +16,7 @@
         "weight": { "type": "string" },
         "maritalStatus": { "type": "string", "enum": ["Single", "Divorced", "Widowed"] },
         "sect": { "type": "string", "enum": ["Sunni", "Shia", "Other"] },
+        "lifestyle": { "type": "string", "enum": ["Moderate", "Religious", "Liberal"] },
         "education": { "type": "string" },
         "occupation": { "type": "string" },
         "income": { "type": "string" },
@@ -36,6 +37,7 @@
         "role": { "type": "string", "enum": ["user", "admin"], "default": "user" },
         "isSuspended": { "type": "boolean", "default": false },
         "isBanned": { "type": "boolean", "default": false },
+        "isProfileComplete": { "type": "boolean", "default": false },
         "membership": {
           "type": "object",
           "properties": {

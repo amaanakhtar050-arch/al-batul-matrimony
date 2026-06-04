@@ -44,11 +44,11 @@ export default function LoginPage() {
         return;
       }
 
-      // Check if profile exists
+      // Check if profile is complete
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
-      if (!userSnap.exists()) {
+      if (!userSnap.exists() || !userSnap.data().isProfileComplete) {
         router.push('/setup-profile');
       } else {
         router.push('/dashboard');
