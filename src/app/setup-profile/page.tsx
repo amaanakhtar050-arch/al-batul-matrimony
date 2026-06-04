@@ -15,8 +15,9 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save } from 'lucide-react';
+import { Camera, Save, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function SetupProfilePage() {
   const { user, loading: authLoading } = useUser();
@@ -51,6 +52,7 @@ export default function SetupProfilePage() {
 
   const [saving, setSaving] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -67,6 +69,7 @@ export default function SetupProfilePage() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          setIsEditing(true);
           setFormData(prev => ({
             ...prev,
             ...data,
@@ -128,13 +131,9 @@ export default function SetupProfilePage() {
       languagesSpoken: languagesArray,
       photoUrl: formData.photoUrl || `https://picsum.photos/seed/${user.uid}/600/800`,
       about: formData.about,
-      status: 'pending',
-      role: 'user',
-      membership: {
-        plan: 'Free'
-      },
-      createdAt: serverTimestamp(),
+      status: isEditing ? 'pending' : 'pending', // Re-submit for approval on edit as standard practice
       lastActiveAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       partnerPreferences: {
         minAge: parseInt(formData.minAgePref),
         maxAge: parseInt(formData.maxAgePref),
@@ -144,11 +143,14 @@ export default function SetupProfilePage() {
       }
     };
 
-    setDoc(userDocRef, profileData, { merge: true })
+    // Only set createdAt if it's a new profile
+    const finalData = isEditing ? profileData : { ...profileData, createdAt: serverTimestamp(), membership: { plan: 'Free' }, role: 'user' };
+
+    setDoc(userDocRef, finalData, { merge: true })
       .then(() => {
         toast({
-          title: "Profile Submitted",
-          description: "Your profile has been saved and is now pending admin approval.",
+          title: isEditing ? "Profile Updated" : "Profile Submitted",
+          description: "Your profile details have been saved and sent for admin verification.",
         });
         router.push('/dashboard');
       })
@@ -156,7 +158,7 @@ export default function SetupProfilePage() {
         const permissionError = new FirestorePermissionError({
           path: userDocRef.path,
           operation: 'write',
-          requestResourceData: profileData,
+          requestResourceData: finalData,
         });
         errorEmitter.emit('permission-error', permissionError);
       })
@@ -174,9 +176,12 @@ export default function SetupProfilePage() {
       <Navbar />
       <main className="container mx-auto px-4 py-12 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <header className="mb-10 text-center">
-            <h1 className="text-4xl font-bold font-headline mb-2">Complete Your Profile</h1>
-            <p className="text-lg text-muted-foreground">Complete your profile to unlock all matrimonial features.</p>
+          <header className="mb-10 text-center flex flex-col items-center">
+            <Link href="/dashboard" className="mb-4 self-start text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Link>
+            <h1 className="text-4xl font-bold font-headline mb-2">{isEditing ? "Edit Your Profile" : "Complete Your Profile"}</h1>
+            <p className="text-lg text-muted-foreground">Keep your details up to date for better matches.</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -326,7 +331,7 @@ export default function SetupProfilePage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="income">Annual Income</Label>
-                      <Input id="income" placeholder="e.g. ₹12,00,000" value={formData.income} onChange={(e) => setFormData({...formData, income: e.target.value})} />
+                      <Input id="income" placeholder="e.g. ₹12,0,000" value={formData.income} onChange={(e) => setFormData({...formData, income: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="city">City</Label>
@@ -360,7 +365,7 @@ export default function SetupProfilePage() {
                   <CardFooter className="flex justify-end gap-4 border-t py-4">
                     <Button type="submit" size="lg" className="gap-2 font-bold" disabled={saving}>
                       <Save className="h-4 w-4" />
-                      {saving ? 'Submitting...' : 'Complete Profile'}
+                      {saving ? (isEditing ? 'Updating...' : 'Submitting...') : (isEditing ? 'Update Profile' : 'Complete Profile')}
                     </Button>
                   </CardFooter>
                 </Card>

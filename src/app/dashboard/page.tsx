@@ -1,11 +1,12 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning, ShieldAlert } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning, ShieldAlert, Lock } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where, limit, getDocs, doc } from "firebase/firestore";
@@ -28,6 +29,33 @@ export default function DashboardPage() {
   
   const [aiSuggestions, setAiSuggestions] = useState<IntelligentMatchmakerSuggestionsOutput | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  // Calculate profile completion percentage
+  const completionPercentage = useMemo(() => {
+    if (!profile) return 0;
+    const coreFields = [
+      'fullName', 'dob', 'age', 'gender', 'height', 'weight', 
+      'maritalStatus', 'sect', 'education', 'occupation', 
+      'income', 'city', 'state', 'country', 'about', 'photoUrl'
+    ];
+    const prefFields = [
+      'minAge', 'maxAge', 'sect', 'education', 'location'
+    ];
+    
+    let filledCount = 0;
+    coreFields.forEach(field => {
+      if (profile[field]) filledCount++;
+    });
+    
+    if (profile.partnerPreferences) {
+      prefFields.forEach(field => {
+        if (profile.partnerPreferences[field]) filledCount++;
+      });
+    }
+
+    const totalFields = coreFields.length + prefFields.length;
+    return Math.round((filledCount / totalFields) * 100);
+  }, [profile]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -197,7 +225,7 @@ export default function DashboardPage() {
 
         {profile.status === 'rejected' && (
           <div className="mb-8 flex items-center gap-4 rounded-2xl bg-destructive/10 p-6 text-destructive border border-destructive/20">
-            <X className="h-8 w-8 shrink-0" />
+            <AlertCircle className="h-8 w-8 shrink-0" />
             <div>
               <p className="font-bold text-lg">Profile Rejected</p>
               <p className="opacity-80">Your profile did not meet our verification standards. Please update your details and re-submit.</p>
@@ -304,10 +332,13 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                    <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       <span>Setup Progress</span>
-                      <span>{profile.status === 'approved' ? '100%' : profile.status === 'rejected' ? 'Needs Update' : '75%'}</span>
+                      <span>{completionPercentage}%</span>
                    </div>
                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden shadow-inner">
-                    <div className={`h-full transition-all duration-1000 ${profile.status === 'approved' ? 'w-full bg-primary' : profile.status === 'rejected' ? 'w-1/4 bg-destructive' : 'w-3/4 bg-secondary'}`} />
+                    <div 
+                      className={`h-full transition-all duration-1000 ${completionPercentage === 100 ? 'bg-primary' : 'bg-secondary'}`} 
+                      style={{ width: `${completionPercentage}%` }}
+                    />
                   </div>
                 </div>
                 <Link href="/setup-profile">
