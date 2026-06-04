@@ -18,26 +18,43 @@ import {
   DollarSign,
   Ruler,
   Scale,
-  Languages
+  Languages,
+  Lock
 } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { useDoc, useFirestore } from "@/firebase";
+import { useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { format } from "date-fns";
+import Link from "next/link";
 
 export default function ProfileDetailPage() {
   const { id } = useParams();
   const { toast } = useToast();
   const db = useFirestore();
+  const { user: currentUser } = useUser();
   const [interestSent, setInterestSent] = useState(false);
 
-  const profileRef = id ? doc(db!, 'users', id as string) : null;
-  const { data: profile, loading } = useDoc(profileRef as any);
+  // Target profile being viewed
+  const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id as string) : null, [db, id]);
+  const { data: profile, loading: profileLoading } = useDoc(profileRef);
+
+  // Viewer's own profile to check their approval status
+  const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
+  const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
   const handleSendInterest = () => {
+    if (viewerProfile?.status !== 'approved') {
+      toast({
+        title: "Account Restricted",
+        description: "Your profile must be approved by an admin before you can send interests.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setInterestSent(true);
     toast({
       title: "Interest Sent",
@@ -45,7 +62,7 @@ export default function ProfileDetailPage() {
     });
   };
 
-  if (loading) return (
+  if (profileLoading || viewerLoading) return (
     <div className="flex h-screen items-center justify-center">
       <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
     </div>
@@ -56,9 +73,14 @@ export default function ProfileDetailPage() {
       <Navbar />
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-xl font-medium text-muted-foreground">Profile not found.</p>
+        <Link href="/discover" className="mt-4">
+          <Button variant="link">Back to Discover</Button>
+        </Link>
       </div>
     </div>
   );
+
+  const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended && !viewerProfile?.isBanned;
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,7 +93,7 @@ export default function ProfileDetailPage() {
               <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted">
                 <Image 
                   src={profile.photoUrl || `https://picsum.photos/seed/${profile.id}/600/800`} 
-                  alt={profile.fullName} 
+                  alt={profile.fullName || "User Profile"} 
                   fill 
                   className="object-cover" 
                 />
@@ -83,18 +105,26 @@ export default function ProfileDetailPage() {
                 )}
               </div>
               
-              <div className="flex gap-4">
-                <Button 
-                  onClick={handleSendInterest} 
-                  disabled={interestSent || profile.status !== 'approved'}
-                  className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary hover:bg-secondary/90 text-primary-foreground"
-                >
-                  <Heart className={`h-5 w-5 ${interestSent ? 'fill-current' : ''}`} />
-                  {interestSent ? 'Interest Sent' : 'Send Interest'}
-                </Button>
-                <Button variant="outline" size="icon" className="h-14 w-14">
-                  <MessageSquare className="h-6 w-6" />
-                </Button>
+              <div className="flex flex-col gap-4">
+                {!canInteract && (
+                  <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-2xl text-xs text-muted-foreground border border-dashed">
+                    <Lock className="h-4 w-4" />
+                    Complete your profile and wait for admin approval to interact.
+                  </div>
+                )}
+                <div className="flex gap-4">
+                  <Button 
+                    onClick={handleSendInterest} 
+                    disabled={interestSent || profile.status !== 'approved' || !canInteract}
+                    className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary hover:bg-secondary/90 text-primary-foreground"
+                  >
+                    <Heart className={`h-5 w-5 ${interestSent ? 'fill-current' : ''}`} />
+                    {interestSent ? 'Interest Sent' : 'Send Interest'}
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-14 w-14" disabled={!canInteract}>
+                    <MessageSquare className="h-6 w-6" />
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center justify-center gap-6 pt-2 text-muted-foreground">
