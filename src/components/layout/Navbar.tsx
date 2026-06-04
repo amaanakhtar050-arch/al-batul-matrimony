@@ -2,18 +2,28 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useUser, useAuth } from "@/firebase";
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { doc } from "firebase/firestore";
 
 export function Navbar() {
   const { user, loading } = useUser();
+  const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+
+  const { data: profile } = useDoc(profileRef);
+  const isAdmin = profile?.role === 'admin';
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -42,6 +52,12 @@ export function Navbar() {
             <MessageSquare className="h-4 w-4" />
             Messages
           </Link>
+          {isAdmin && (
+            <Link href="/admin" className="flex items-center gap-1.5 text-sm font-bold text-primary hover:opacity-80">
+              <ShieldAlert className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -84,6 +100,7 @@ export function Navbar() {
                 <Link href="/discover" className="text-lg font-medium">Discover</Link>
                 <Link href="/interests" className="text-lg font-medium">Interests</Link>
                 <Link href="/messages" className="text-lg font-medium">Messages</Link>
+                {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
                 <Link href="/dashboard" className="text-lg font-medium">My Profile</Link>
                 <Link href="/membership" className="text-lg font-medium">Premium Membership</Link>
                 {user && (

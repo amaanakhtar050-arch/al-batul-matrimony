@@ -17,7 +17,11 @@
         "state": { "type": "string" },
         "country": { "type": "string" },
         "photoUrl": { "type": "string" },
+        "about": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Approval status for the profile" },
+        "role": { "type": "string", "enum": ["user", "admin"], "default": "user" },
+        "isSuspended": { "type": "boolean", "default": false },
+        "isBanned": { "type": "boolean", "default": false },
         "membership": {
           "type": "object",
           "properties": {
@@ -46,6 +50,18 @@
         "notes": { "type": "string" }
       },
       "required": ["userId", "plan", "amount", "transactionId", "status"]
+    },
+    "PlatformSettings": {
+      "title": "Platform Settings",
+      "description": "Global configuration settings for the Al Batul platform.",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string" },
+        "maintenanceMode": { "type": "boolean" },
+        "registrationEnabled": { "type": "boolean" },
+        "upiId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -59,6 +75,10 @@
     "/payments/{paymentId}": {
       "schema": "MembershipPayment",
       "description": "Stores manual payment verification requests."
+    },
+    "/settings/platform": {
+      "schema": "PlatformSettings",
+      "description": "Global platform configuration."
     }
   }
 }
