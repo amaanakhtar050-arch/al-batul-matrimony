@@ -1,0 +1,43 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Comprehensive profile information for Al Batul members.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "maritalStatus": { "type": "string" },
+        "sect": { "type": "string" },
+        "education": { "type": "string" },
+        "occupation": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Approval status for the profile" },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "minAge": { "type": "number" },
+            "maxAge": { "type": "number" },
+            "sect": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "age", "gender", "sect", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores individual user profile data."
+    }
+  }
+}

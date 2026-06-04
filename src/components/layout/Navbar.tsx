@@ -1,14 +1,25 @@
 
-"use client";
+'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useUser, useAuth } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 export function Navbar() {
-  const [isLoggedIn] = useState(true); // Mock auth state
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push('/');
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
@@ -34,7 +45,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          {isLoggedIn ? (
+          {!loading && user ? (
             <>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
@@ -46,11 +57,18 @@ export function Navbar() {
                   My Profile
                 </Button>
               </Link>
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+              </Button>
             </>
-          ) : (
+          ) : !loading && (
             <div className="flex gap-2">
-              <Button variant="ghost">Login</Button>
-              <Button>Join Al Batul</Button>
+              <Link href="/login">
+                <Button variant="ghost">Login</Button>
+              </Link>
+              <Link href="/register">
+                <Button>Join Al Batul</Button>
+              </Link>
             </div>
           )}
 
@@ -68,6 +86,11 @@ export function Navbar() {
                 <Link href="/messages" className="text-lg font-medium">Messages</Link>
                 <Link href="/dashboard" className="text-lg font-medium">My Profile</Link>
                 <Link href="/membership" className="text-lg font-medium">Premium Membership</Link>
+                {user && (
+                   <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                     Logout
+                   </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
