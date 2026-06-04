@@ -15,7 +15,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, ArrowLeft } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Phone, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -30,6 +30,8 @@ export default function SetupProfilePage() {
     dob: '',
     age: '',
     gender: '',
+    mobileNumber: '',
+    whatsAppNumber: '',
     height: '',
     weight: '',
     maritalStatus: '',
@@ -76,6 +78,8 @@ export default function SetupProfilePage() {
             fullName: data.fullName || '',
             dob: data.dob || '',
             age: data.age?.toString() || '',
+            mobileNumber: data.mobileNumber || '',
+            whatsAppNumber: data.whatsAppNumber || '',
             height: data.height || '',
             weight: data.weight || '',
             maritalStatus: data.maritalStatus || '',
@@ -118,6 +122,8 @@ export default function SetupProfilePage() {
       dob: formData.dob,
       age: parseInt(formData.age) || 0,
       gender: formData.gender,
+      mobileNumber: formData.mobileNumber,
+      whatsAppNumber: formData.whatsAppNumber,
       height: formData.height,
       weight: formData.weight,
       maritalStatus: formData.maritalStatus,
@@ -131,7 +137,7 @@ export default function SetupProfilePage() {
       languagesSpoken: languagesArray,
       photoUrl: formData.photoUrl || `https://picsum.photos/seed/${user.uid}/600/800`,
       about: formData.about,
-      status: 'pending', // Always resets to pending on submission/re-submission
+      status: 'pending',
       lastActiveAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       partnerPreferences: {
@@ -279,6 +285,24 @@ export default function SetupProfilePage() {
                           <SelectItem value="Female">Female</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md">
+                  <CardHeader><CardTitle className="font-headline text-2xl">Contact Details</CardTitle></CardHeader>
+                  <CardContent className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="mobileNumber" className="flex items-center gap-2">
+                        <Phone className="h-3 w-3" /> Mobile Number
+                      </Label>
+                      <Input id="mobileNumber" placeholder="+91..." value={formData.mobileNumber} onChange={(e) => setFormData({...formData, mobileNumber: e.target.value})} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsAppNumber" className="flex items-center gap-2">
+                        <MessageCircle className="h-3 w-3" /> WhatsApp Number
+                      </Label>
+                      <Input id="whatsAppNumber" placeholder="+91..." value={formData.whatsAppNumber} onChange={(e) => setFormData({...formData, whatsAppNumber: e.target.value})} />
                     </div>
                   </CardContent>
                 </Card>

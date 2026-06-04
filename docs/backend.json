@@ -10,6 +10,8 @@
         "gender": { "type": "string", "enum": ["Male", "Female"] },
         "dob": { "type": "string", "format": "date" },
         "age": { "type": "number" },
+        "mobileNumber": { "type": "string" },
+        "whatsAppNumber": { "type": "string" },
         "height": { "type": "string" },
         "weight": { "type": "string" },
         "maritalStatus": { "type": "string", "enum": ["Single", "Divorced", "Widowed"] },
@@ -54,7 +56,7 @@
         "lastActiveAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["fullName", "age", "gender", "sect", "status", "city", "country"]
+      "required": ["fullName", "age", "gender", "sect", "status", "city", "country", "mobileNumber"]
     },
     "MembershipPayment": {
       "title": "Membership Payment",

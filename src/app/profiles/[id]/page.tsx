@@ -4,6 +4,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { 
   Heart, 
   MapPin, 
@@ -19,7 +20,10 @@ import {
   Ruler,
   Scale,
   Languages,
-  Lock
+  Lock,
+  Phone,
+  MessageCircle,
+  Crown
 } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -37,11 +41,9 @@ export default function ProfileDetailPage() {
   const { user: currentUser } = useUser();
   const [interestSent, setInterestSent] = useState(false);
 
-  // Target profile being viewed
   const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id as string) : null, [db, id]);
   const { data: profile, loading: profileLoading } = useDoc(profileRef);
 
-  // Viewer's own profile to check their approval status
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
@@ -81,6 +83,7 @@ export default function ProfileDetailPage() {
   );
 
   const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended && !viewerProfile?.isBanned;
+  const hasContactAccess = viewerProfile?.membership?.plan && ['Gold', 'Premium', 'Prime'].includes(viewerProfile.membership.plan);
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,7 +110,7 @@ export default function ProfileDetailPage() {
               
               <div className="flex flex-col gap-4">
                 {!canInteract && (
-                  <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-2xl text-xs text-muted-foreground border border-dashed">
+                  <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-2xl text-xs text-muted-foreground border border-dashed text-center justify-center">
                     <Lock className="h-4 w-4" />
                     Complete your profile and wait for admin approval to interact.
                   </div>
@@ -195,6 +198,48 @@ export default function ProfileDetailPage() {
               <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
                 {profile.about}
               </p>
+            </section>
+
+            <section className="mb-12">
+              <h3 className="mb-6 text-2xl font-bold font-headline border-b pb-2 flex items-center gap-2">
+                <Phone className="h-6 w-6 text-primary" /> Contact Details
+              </h3>
+              {hasContactAccess ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                      <Phone className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Mobile Number</p>
+                      <p className="font-bold text-lg">{profile.mobileNumber || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  {profile.whatsAppNumber && (
+                    <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
+                        <MessageCircle className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">WhatsApp</p>
+                        <p className="font-bold text-lg">{profile.whatsAppNumber}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-3xl bg-muted/30 border-2 border-dashed border-border p-10 text-center">
+                  <Lock className="mx-auto mb-4 h-10 w-10 text-muted-foreground/50" />
+                  <p className="text-lg font-bold mb-2">Details Locked</p>
+                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold, Premium, or Prime membership to view contact details.</p>
+                  <Link href="/membership">
+                    <Button className="gap-2 bg-primary text-white font-bold h-11 px-8">
+                      <Crown className="h-4 w-4" />
+                      Upgrade Now
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </section>
 
             <div className="grid gap-8 md:grid-cols-2">
