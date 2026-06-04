@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning, ShieldAlert, Lock, UserCheck } from "lucide-react";
+import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning, ShieldAlert, Lock, UserCheck, XCircle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -37,9 +37,6 @@ export default function DashboardPage() {
       'sect', 'lifestyle', 'education', 'occupation', 'city', 'state', 'country', 
       'about', 'photoUrl', 'mobileNumber'
     ];
-    const prefFields = [
-      'minAge', 'maxAge', 'sect', 'education', 'location'
-    ];
     
     let filledCount = 0;
     coreFields.forEach(field => {
@@ -52,7 +49,7 @@ export default function DashboardPage() {
       });
     }
 
-    const totalFields = coreFields.length + 5; // pref fields count
+    const totalFields = coreFields.length + 5; 
     return Math.min(100, Math.round((filledCount / totalFields) * 100));
   }, [profile]);
 
@@ -171,9 +168,12 @@ export default function DashboardPage() {
             <p className="text-muted-foreground">Manage your matrimonial journey here.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Badge variant={profile.status === 'approved' ? 'default' : profile.status === 'rejected' ? 'destructive' : 'secondary'} className="h-10 px-4 gap-2 border-none">
-              {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-              {profile.status === 'approved' ? 'VERIFIED' : 'PENDING REVIEW'}
+            <Badge 
+              variant={profile.status === 'approved' ? 'default' : profile.status === 'rejected' ? 'destructive' : 'secondary'} 
+              className="h-10 px-4 gap-2 border-none"
+            >
+              {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : profile.status === 'rejected' ? <XCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+              {profile.status === 'approved' ? 'VERIFIED' : profile.status === 'rejected' ? 'REJECTED' : 'PENDING REVIEW'}
             </Badge>
             {isPremium ? (
                <Badge className="h-10 px-4 gap-2 bg-primary border-none text-white">
@@ -191,11 +191,24 @@ export default function DashboardPage() {
         </div>
 
         {profile.status === 'pending' && (
-          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/30 p-6 text-primary border border-primary/5">
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/30 p-6 text-primary border border-primary/10">
             <UserCheck className="h-8 w-8 shrink-0 text-primary" />
             <div>
               <p className="font-bold text-lg">Verification in Progress</p>
-              <p className="opacity-80">Our team is reviewing your profile. Once approved, you can interact with other members.</p>
+              <p className="opacity-80">Our team is reviewing your profile. Once approved, you can discover and interact with other members.</p>
+            </div>
+          </div>
+        )}
+
+        {profile.status === 'rejected' && (
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-destructive/10 p-6 text-destructive border border-destructive/20">
+            <XCircle className="h-8 w-8 shrink-0" />
+            <div>
+              <p className="font-bold text-lg">Profile Rejected</p>
+              <p className="opacity-80 text-sm">Your profile did not meet our community guidelines. Please update your details or contact support.</p>
+              <Link href="/setup-profile" className="mt-2 block">
+                <Button variant="link" className="p-0 h-auto text-destructive font-bold underline">Edit Profile</Button>
+              </Link>
             </div>
           </div>
         )}

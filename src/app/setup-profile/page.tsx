@@ -133,6 +133,7 @@ export default function SetupProfilePage() {
     const userDocRef = doc(db, 'users', user.uid);
     const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
     
+    // Profiles go to 'pending' on creation and on any update to ensure admin verification
     const profileData = {
       fullName: formData.fullName,
       dob: formData.dob,
@@ -181,7 +182,7 @@ export default function SetupProfilePage() {
       .then(() => {
         toast({
           title: "Profile Submitted",
-          description: "Your details have been saved and sent for admin verification.",
+          description: "Your details have been saved. Your profile is now pending admin verification.",
         });
         router.push('/dashboard');
       })
@@ -214,7 +215,7 @@ export default function SetupProfilePage() {
               </Link>
             )}
             <h1 className="text-4xl font-bold font-headline mb-2">{isEditing ? "Update Profile" : "Create Your Profile"}</h1>
-            <p className="text-lg text-muted-foreground">Complete your identity on Al Batul with sincerity and detail.</p>
+            <p className="text-lg text-muted-foreground">Complete your identity on Al Batul with sincerity. Note: Updates require re-approval.</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-8">
