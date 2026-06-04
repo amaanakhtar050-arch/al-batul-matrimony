@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -32,12 +31,15 @@ export default function DiscoverPage() {
   const filteredProfiles = useMemo(() => {
     if (!profiles) return [];
     return profiles.filter(p => {
+      // Exclude suspended or banned users even if they have "approved" status
+      if (p.isSuspended || p.isBanned) return false;
+
       const matchesAge = p.age >= ageRange[0] && p.age <= ageRange[1];
       const matchesSect = sectFilter === "all" || p.sect.toLowerCase() === sectFilter.toLowerCase();
       const matchesSearch = !searchTerm || 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.occupation.toLowerCase().includes(searchTerm.toLowerCase());
+        p.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.occupation?.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesAge && matchesSect && matchesSearch;
     });
@@ -50,11 +52,10 @@ export default function DiscoverPage() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <header className="mb-10">
           <h1 className="mb-2 text-3xl font-bold font-headline">Discover Matches</h1>
-          <p className="text-muted-foreground">Find your potential life partner within our verified community.</p>
+          <p className="text-muted-foreground">Find potential life partners within our verified community.</p>
         </header>
 
-        {/* Search and Filters */}
-        <div className="mb-12 grid gap-6 rounded-2xl bg-white p-6 shadow-sm md:grid-cols-5">
+        <div className="mb-12 grid gap-6 rounded-2xl bg-white p-6 shadow-sm md:grid-cols-5 border border-border/50">
           <div className="md:col-span-2">
             <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Search</label>
             <div className="relative">
@@ -76,9 +77,9 @@ export default function DiscoverPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sects</SelectItem>
-                <SelectItem value="sunni">Sunni</SelectItem>
-                <SelectItem value="shia">Shia</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="Sunni">Sunni</SelectItem>
+                <SelectItem value="Shia">Shia</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -103,28 +104,34 @@ export default function DiscoverPage() {
           </div>
         </div>
 
-        {/* Profile Grid */}
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
           </div>
         ) : filteredProfiles.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProfiles.map((profile: any, idx) => (
+            {filteredProfiles.map((profile: any) => (
               <ProfileCard 
                 key={profile.id} 
                 profile={{
-                  ...profile,
+                  id: profile.id,
+                  name: profile.fullName || "User",
+                  age: profile.age,
+                  sect: profile.sect,
+                  city: profile.city,
+                  education: profile.education,
+                  occupation: profile.occupation,
                   imageUrl: profile.photoUrl || `https://picsum.photos/seed/${profile.id}/600/800`,
-                  imageHint: "Muslim professional"
+                  imageHint: "Muslim professional",
+                  isVerified: profile.status === 'approved'
                 }} 
               />
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-xl font-medium text-muted-foreground">No approved profiles found matching your filters.</p>
-            <p className="text-sm text-muted-foreground">Try adjusting your search criteria or check back later.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
+            <p className="text-xl font-medium text-muted-foreground">No approved profiles found.</p>
+            <p className="text-sm text-muted-foreground">Try adjusting your filters or search criteria.</p>
           </div>
         )}
       </main>

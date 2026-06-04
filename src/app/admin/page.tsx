@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -10,25 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Check, 
   X, 
-  ShieldAlert, 
-  CreditCard, 
-  UserCheck, 
   Search, 
-  ExternalLink, 
   Settings, 
   Users, 
   Ban, 
-  ShieldCheck, 
   Trash2, 
-  Edit3,
   Unlock,
-  Lock
+  Lock,
+  UserX,
+  CreditCard,
+  UserCheck
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
 import { 
   collection, 
   doc, 
@@ -36,7 +31,6 @@ import {
   serverTimestamp, 
   query, 
   orderBy, 
-  where, 
   deleteDoc,
   setDoc 
 } from "firebase/firestore";
@@ -44,17 +38,12 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { format } from "date-fns";
-import { useRouter } from "next/navigation";
 
 export default function AdminDashboard() {
   const db = useFirestore();
-  const { user: authUser } = useUser();
   const { toast } = useToast();
-  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Queries
   const paymentsQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "payments"), orderBy("createdAt", "desc"));
@@ -74,7 +63,6 @@ export default function AdminDashboard() {
   const { data: allUsers, loading: loadingUsers } = useCollection(allUsersQuery);
   const { data: settings } = useDoc(platformSettingsRef);
 
-  // Administrative Actions
   const handleApprovePayment = (paymentId: string, userId: string, plan: string) => {
     if (!db) return;
     const paymentRef = doc(db, "payments", paymentId);
@@ -83,7 +71,6 @@ export default function AdminDashboard() {
     updateDoc(paymentRef, {
       status: "approved",
       processedAt: serverTimestamp(),
-      notes: "Payment verified manually by super-admin."
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: paymentRef.path, operation: "update" })));
 
     const expiryDate = new Date();
@@ -123,7 +110,7 @@ export default function AdminDashboard() {
   };
 
   const filteredUsers = allUsers?.filter(u => 
-    u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -135,7 +122,7 @@ export default function AdminDashboard() {
         <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold font-headline">Super-Admin Panel</h1>
-            <p className="text-muted-foreground">Full control over Al Batul platform, members, and settings.</p>
+            <p className="text-muted-foreground">Manage members, approvals, and platform configuration.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -153,25 +140,21 @@ export default function AdminDashboard() {
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="mb-6 grid w-full grid-cols-4 md:w-auto">
             <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" />
-              Users
+              <Users className="h-4 w-4" /> Users
             </TabsTrigger>
             <TabsTrigger value="approvals" className="gap-2">
-              <UserCheck className="h-4 w-4" />
-              Approvals
+              <UserCheck className="h-4 w-4" /> Approvals
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              Payments
+              <CreditCard className="h-4 w-4" /> Payments
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Settings
+              <Settings className="h-4 w-4" /> Settings
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
-            <Card>
+            <Card className="border-none shadow-sm">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -179,17 +162,17 @@ export default function AdminDashboard() {
                       <TableHead>Member</TableHead>
                       <TableHead>Role / Plan</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loadingUsers ? (
                       <TableRow><TableCell colSpan={4} className="text-center py-10">Loading users...</TableCell></TableRow>
                     ) : filteredUsers?.map((user: any) => (
-                      <TableRow key={user.id} className={user.isBanned ? "bg-red-50/50" : user.isSuspended ? "bg-orange-50/50" : ""}>
+                      <TableRow key={user.id} className={user.isBanned ? "bg-red-50" : user.isSuspended ? "bg-orange-50" : ""}>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-medium">{user.name}</span>
+                            <span className="font-medium">{user.fullName}</span>
                             <span className="text-xs text-muted-foreground">{user.city}, {user.country}</span>
                           </div>
                         </TableCell>
@@ -201,17 +184,17 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            <Badge variant={user.status === 'approved' ? 'default' : 'secondary'}>{user.status}</Badge>
-                            {user.isSuspended && <Badge variant="destructive" className="bg-orange-600">Suspended</Badge>}
+                            <Badge variant={user.status === 'approved' ? 'default' : user.status === 'rejected' ? 'destructive' : 'secondary'}>{user.status}</Badge>
+                            {user.isSuspended && <Badge variant="outline" className="text-orange-600 border-orange-600 bg-orange-50">Suspended</Badge>}
                             {user.isBanned && <Badge variant="destructive">Banned</Badge>}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button size="icon" variant="ghost" onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button size="icon" variant="ghost" title={user.isSuspended ? "Unsuspend" : "Suspend"} onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}>
                               {user.isSuspended ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-orange-600" />}
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}>
+                            <Button size="icon" variant="ghost" title={user.isBanned ? "Unban" : "Ban"} onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}>
                               <Ban className={`h-4 w-4 ${user.isBanned ? "text-primary" : "text-destructive"}`} />
                             </Button>
                             <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteUser(user.id)}>
@@ -228,7 +211,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="approvals">
-            <Card>
+            <Card className="border-none shadow-sm">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -241,12 +224,17 @@ export default function AdminDashboard() {
                   <TableBody>
                     {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell className="font-medium">{user.fullName}</TableCell>
                         <TableCell>{user.age} / {user.gender} • {user.sect}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
-                            <Check className="h-4 w-4 mr-1" /> Approve
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
+                              <Check className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-destructive border-destructive" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
+                              <UserX className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -260,7 +248,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="payments">
-            <Card>
+            <Card className="border-none shadow-sm">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -282,7 +270,7 @@ export default function AdminDashboard() {
                         <TableCell className="text-right">
                           {payment.status === 'pending' && (
                             <Button size="sm" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
-                              Approve
+                              Verify
                             </Button>
                           )}
                         </TableCell>
@@ -298,8 +286,7 @@ export default function AdminDashboard() {
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Platform Controls</CardTitle>
-                  <CardDescription>Manage global site behavior and accessibility.</CardDescription>
+                  <CardTitle>Global Access Controls</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
@@ -314,8 +301,8 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label>New Registrations</Label>
-                      <p className="text-xs text-muted-foreground">Allow new users to join the community.</p>
+                      <Label>Allow Registrations</Label>
+                      <p className="text-xs text-muted-foreground">Toggle whether new users can join.</p>
                     </div>
                     <Switch 
                       checked={settings?.registrationEnabled !== false} 
@@ -328,7 +315,6 @@ export default function AdminDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Financial Settings</CardTitle>
-                  <CardDescription>Configure payment details for manual verification.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -337,14 +323,6 @@ export default function AdminDashboard() {
                       placeholder="e.g. albatul@upi" 
                       defaultValue={settings?.upiId} 
                       onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Site Name</Label>
-                    <Input 
-                      placeholder="Al Batul Matrimony" 
-                      defaultValue={settings?.siteName}
-                      onBlur={(e) => handleUpdateSettings({ siteName: e.target.value })}
                     />
                   </div>
                 </CardContent>

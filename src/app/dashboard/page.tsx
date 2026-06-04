@@ -1,11 +1,10 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning } from "lucide-react";
+import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown, MailWarning, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -38,13 +37,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchSuggestions() {
-      if (!profile || !db || profile.status !== 'approved') return;
+      if (!profile || !db || profile.status !== 'approved' || profile.isSuspended || profile.isBanned) return;
       setLoadingSuggestions(true);
       try {
         const q = query(collection(db, 'users'), where('status', '==', 'approved'), limit(10));
         const snapshot = await getDocs(q);
         const availableProfiles = snapshot.docs
-          .filter(d => d.id !== user?.uid)
+          .filter(d => d.id !== user?.uid && !d.data().isSuspended && !d.data().isBanned)
           .map(d => ({
             profileId: d.id,
             sect: d.data().sect || '',
@@ -87,6 +86,28 @@ export default function DashboardPage() {
   }
 
   if (!user) return null;
+
+  if (profile?.isBanned) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
+        <h1 className="text-3xl font-bold mb-2">Account Permanently Banned</h1>
+        <p className="text-muted-foreground text-center max-w-md">Your access to Al Batul Matrimony has been revoked due to a violation of our community guidelines. This decision is final.</p>
+        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Back to Home</Button>
+      </div>
+    );
+  }
+
+  if (profile?.isSuspended) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+        <Lock className="h-20 w-20 text-orange-600 mb-4" />
+        <h1 className="text-3xl font-bold mb-2">Account Suspended</h1>
+        <p className="text-muted-foreground max-w-md">Your profile is currently under review or has been temporarily suspended by our administration. Please contact support if you believe this is an error.</p>
+        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Back to Home</Button>
+      </div>
+    );
+  }
 
   if (user && !user.emailVerified) {
     return (
@@ -141,16 +162,16 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-4xl font-bold font-headline">Salam, {profile.name}!</h1>
+            <h1 className="text-4xl font-bold font-headline">Salam, {profile.fullName || profile.name}!</h1>
             <p className="text-muted-foreground">Your matrimonial journey is in progress.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Badge variant={profile.status === 'approved' ? 'default' : 'secondary'} className="h-10 px-4 gap-2 border-none">
+            <Badge variant={profile.status === 'approved' ? 'default' : profile.status === 'rejected' ? 'destructive' : 'secondary'} className="h-10 px-4 gap-2 border-none">
               {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
               {profile.status.toUpperCase()}
             </Badge>
             {isPremium ? (
-               <Badge className="h-10 px-4 gap-2 bg-primary border-none">
+               <Badge className="h-10 px-4 gap-2 bg-primary border-none text-white">
                   <Crown className="h-4 w-4 text-secondary" />
                   {profile.membership.plan} MEMBER
                </Badge>
@@ -168,8 +189,21 @@ export default function DashboardPage() {
           <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/30 p-6 text-primary border border-primary/5">
             <AlertCircle className="h-8 w-8 shrink-0 text-primary" />
             <div>
-              <p className="font-bold text-lg">Verification in Progress</p>
-              <p className="opacity-80">Our admin team is currently reviewing your profile for quality and authenticity. You'll gain full access to search and AI matches once approved.</p>
+              <p className="font-bold text-lg">Profile Under Review</p>
+              <p className="opacity-80">Our admin team is currently reviewing your profile for authenticity. You'll gain full access once approved.</p>
+            </div>
+          </div>
+        )}
+
+        {profile.status === 'rejected' && (
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-destructive/10 p-6 text-destructive border border-destructive/20">
+            <X className="h-8 w-8 shrink-0" />
+            <div>
+              <p className="font-bold text-lg">Profile Rejected</p>
+              <p className="opacity-80">Your profile did not meet our verification standards. Please update your details and re-submit.</p>
+              <Link href="/setup-profile">
+                <Button variant="link" className="p-0 h-auto text-destructive font-bold underline">Update Profile</Button>
+              </Link>
             </div>
           </div>
         )}
@@ -270,10 +304,10 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                    <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       <span>Setup Progress</span>
-                      <span>{profile.status === 'approved' ? '100%' : '75%'}</span>
+                      <span>{profile.status === 'approved' ? '100%' : profile.status === 'rejected' ? 'Needs Update' : '75%'}</span>
                    </div>
                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden shadow-inner">
-                    <div className={`h-full transition-all duration-1000 ${profile.status === 'approved' ? 'w-full bg-primary' : 'w-3/4 bg-secondary'}`} />
+                    <div className={`h-full transition-all duration-1000 ${profile.status === 'approved' ? 'w-full bg-primary' : profile.status === 'rejected' ? 'w-1/4 bg-destructive' : 'w-3/4 bg-secondary'}`} />
                   </div>
                 </div>
                 <Link href="/setup-profile">
