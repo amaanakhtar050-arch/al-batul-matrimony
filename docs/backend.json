@@ -32,6 +32,8 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "idPhotoUrl": { "type": "string", "description": "URL of the submitted government ID." },
+        "selfiePhotoUrl": { "type": "string", "description": "URL of the submitted selfie for verification." },
         "about": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Verification status" },
         "role": { "type": "string", "enum": ["user", "admin"], "default": "user" },
@@ -93,7 +95,7 @@
       "required": ["fromUserId", "toUserId", "status"]
     },
     "ChatMessage": {
-      "title": "Chat Message",
+      "title": "ChatMessage",
       "description": "Individual messages within a private chat conversation.",
       "type": "object",
       "properties": {

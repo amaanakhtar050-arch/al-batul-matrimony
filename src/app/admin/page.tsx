@@ -3,7 +3,7 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,17 @@ import {
   Trash2, 
   Unlock,
   Lock,
-  UserX,
   CreditCard,
   UserCheck,
+  ShieldCheck,
   Eye,
-  MoreVertical
+  FileText,
+  UserCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
 import { 
   collection, 
@@ -41,6 +43,7 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AdminDashboard() {
   const db = useFirestore();
@@ -62,8 +65,8 @@ export default function AdminDashboard() {
     return doc(db, "settings", "platform");
   }, [db]);
 
-  const { data: payments, loading: loadingPayments } = useCollection(paymentsQuery);
-  const { data: allUsers, loading: loadingUsers } = useCollection(allUsersQuery);
+  const { data: payments } = useCollection(paymentsQuery);
+  const { data: allUsers } = useCollection(allUsersQuery);
   const { data: settings } = useDoc(platformSettingsRef);
 
   const handleApprovePayment = (paymentId: string, userId: string, plan: string) => {
@@ -76,18 +79,16 @@ export default function AdminDashboard() {
       processedAt: serverTimestamp(),
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: paymentRef.path, operation: "update" })));
 
-    // Calculate expiry based on plan
     const expiryDate = new Date();
     if (plan === "Silver") expiryDate.setMonth(expiryDate.getMonth() + 3);
     else if (plan === "Gold") expiryDate.setMonth(expiryDate.getMonth() + 6);
     else if (plan === "Premium") expiryDate.setMonth(expiryDate.getMonth() + 12);
-    else if (plan === "Prime") expiryDate.setFullYear(expiryDate.getFullYear() + 10); // Effectively lifetime
-    else expiryDate.setMonth(expiryDate.getMonth() + 1); // Default 1 month for Registration fee level
+    else if (plan === "Prime") expiryDate.setFullYear(expiryDate.getFullYear() + 10);
+    else expiryDate.setMonth(expiryDate.getMonth() + 1);
 
     updateDoc(userRef, {
       "membership.plan": plan,
       "membership.expiresAt": expiryDate.toISOString(),
-      status: "approved"
     }).then(() => {
       toast({ title: "Payment Approved", description: `${plan} membership activated.` });
     });
@@ -108,12 +109,12 @@ export default function AdminDashboard() {
     if (!db) return;
     const userRef = doc(db, "users", userId);
     updateDoc(userRef, updates).then(() => {
-      toast({ title: "Profile Updated" });
+      toast({ title: "Status Updated" });
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: userRef.path, operation: "update" })));
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (!db || !confirm("Delete this user?")) return;
+    if (!db || !confirm("Delete this user permanently?")) return;
     const userRef = doc(db, "users", userId);
     deleteDoc(userRef).then(() => {
       toast({ title: "User Deleted", variant: "destructive" });
@@ -140,8 +141,8 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold font-headline text-primary">Super-Admin Panel</h1>
-            <p className="text-muted-foreground text-sm">Platform management and manual payment audit.</p>
+            <h1 className="text-3xl font-bold font-headline text-primary">Admin Control Center</h1>
+            <p className="text-muted-foreground text-sm">Review identity documents, verify payments, and manage members.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -156,21 +157,100 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <Tabs defaultValue="payments" className="w-full">
+        <Tabs defaultValue="approvals" className="w-full">
           <TabsList className="mb-6 h-auto p-1 bg-muted/50">
+            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
+              <UserCheck className="h-4 w-4" /> Profile Approvals
+            </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2 px-4 py-2">
               <CreditCard className="h-4 w-4" /> Payments
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
-              <UserCheck className="h-4 w-4" /> Approvals
-            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2 px-4 py-2">
-              <Users className="h-4 w-4" /> Members
+              <Users className="h-4 w-4" /> All Members
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2 px-4 py-2">
-              <Settings className="h-4 w-4" /> Settings
+              <Settings className="h-4 w-4" /> System
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="approvals">
+            <Card className="border-none shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Candidate</TableHead>
+                    <TableHead>Identity Docs</TableHead>
+                    <TableHead>Location & Details</TableHead>
+                    <TableHead className="text-right">Review Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 gap-1">
+                                <FileText className="h-3 w-3" /> Gov ID
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl">
+                              <DialogHeader><DialogTitle>Government ID Review: {user.fullName}</DialogTitle></DialogHeader>
+                              <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                                {user.idPhotoUrl ? (
+                                  <Image src={user.idPhotoUrl} alt="ID Scan" fill className="object-contain" />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">No ID Image Uploaded</div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-8 gap-1">
+                                <UserCircle className="h-3 w-3" /> Selfie
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader><DialogTitle>Verification Selfie: {user.fullName}</DialogTitle></DialogHeader>
+                              <div className="relative aspect-square w-full overflow-hidden rounded-lg border">
+                                {user.selfiePhotoUrl ? (
+                                  <Image src={user.selfiePhotoUrl} alt="Selfie" fill className="object-contain" />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">No Selfie Uploaded</div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {user.age}Y • {user.gender} • {user.city}, {user.country}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
+                            <Check className="h-3 w-3 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-destructive border-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
+                            Reject
+                          </Button>
+                          <Link href={`/profiles/${user.id}`}>
+                            <Button size="sm" variant="ghost" className="h-8">Profile</Button>
+                          </Link>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {allUsers?.filter(u => u.status === 'pending').length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No pending profile verifications.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="payments">
             <Card className="border-none shadow-sm overflow-hidden">
@@ -222,53 +302,13 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="approvals">
-            <Card className="border-none shadow-sm">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Profile Details</TableHead>
-                    <TableHead className="text-right">Review Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {user.age}Y • {user.gender} • {user.sect} • {user.city}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
-                            <Check className="h-3 w-3 mr-1" /> Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-destructive border-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
-                            Reject
-                          </Button>
-                          <Link href={`/profiles/${user.id}`}>
-                            <Button size="sm" variant="ghost" className="h-8">View</Button>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {allUsers?.filter(u => u.status === 'pending').length === 0 && (
-                    <TableRow><TableCell colSpan={3} className="text-center py-20 text-muted-foreground">No pending profile verifications.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="users">
             <Card className="border-none shadow-sm overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
                     <TableHead>Member</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Identity Status</TableHead>
                     <TableHead>Subscription</TableHead>
                     <TableHead className="text-right">Controls</TableHead>
                   </TableRow>
@@ -284,7 +324,8 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4">
+                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4 gap-1">
+                            {user.status === 'approved' && <ShieldCheck className="h-2 w-2" />}
                             {user.status}
                           </Badge>
                           {user.isSuspended && <Badge variant="outline" className="text-orange-600 text-[9px] h-4">Suspended</Badge>}
@@ -342,7 +383,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
-                <CardHeader><CardTitle className="text-lg">Payment Config</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Financial Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Global UPI ID</Label>
@@ -352,7 +393,6 @@ export default function AdminDashboard() {
                       className="h-10"
                       onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })}
                     />
-                    <p className="text-[10px] text-muted-foreground">This ID is shown to users on the membership page.</p>
                   </div>
                 </CardContent>
               </Card>
