@@ -18,17 +18,34 @@
         "country": { "type": "string" },
         "photoUrl": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Approval status for the profile" },
-        "preferences": {
+        "membership": {
           "type": "object",
           "properties": {
-            "minAge": { "type": "number" },
-            "maxAge": { "type": "number" },
-            "sect": { "type": "string" }
+            "plan": { "type": "string", "enum": ["Free", "Gold", "Platinum"] },
+            "expiresAt": { "type": "string", "format": "date-time" }
           }
         },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "age", "gender", "sect", "status"]
+    },
+    "MembershipPayment": {
+      "title": "Membership Payment",
+      "description": "Records of manual payment submissions for membership upgrades.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "plan": { "type": "string", "enum": ["Gold", "Platinum"] },
+        "amount": { "type": "number" },
+        "transactionId": { "type": "string", "description": "UTR or Transaction Reference Number" },
+        "screenshotUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "processedAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["userId", "plan", "amount", "transactionId", "status"]
     }
   },
   "auth": {
@@ -38,6 +55,10 @@
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Stores individual user profile data."
+    },
+    "/payments/{paymentId}": {
+      "schema": "MembershipPayment",
+      "description": "Stores manual payment verification requests."
     }
   }
 }

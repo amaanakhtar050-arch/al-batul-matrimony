@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock } from "lucide-react";
+import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, AlertCircle, Edit2, Clock, Crown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -13,6 +13,7 @@ import { collection, query, where, limit, getDocs, doc } from "firebase/firestor
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useUser();
@@ -107,6 +108,8 @@ export default function DashboardPage() {
     );
   }
 
+  const isPremium = profile.membership?.plan && profile.membership.plan !== 'Free';
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -117,19 +120,28 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold font-headline">Salam, {profile.name}!</h1>
             <p className="text-muted-foreground">Welcome back to your matrimonial journey.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Badge variant={profile.status === 'approved' ? 'default' : 'secondary'} className="h-10 px-4 gap-2">
               {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
               {profile.status.toUpperCase()}
             </Badge>
-            <Button className="gap-2 bg-secondary hover:bg-secondary/90 text-primary-foreground">
-              Upgrade to Premium
-            </Button>
+            {isPremium ? (
+               <Badge className="h-10 px-4 gap-2 bg-primary">
+                  <Crown className="h-4 w-4 text-secondary" />
+                  {profile.membership.plan} MEMBER
+               </Badge>
+            ) : (
+              <Link href="/membership">
+                <Button className="gap-2 bg-secondary hover:bg-secondary/90 text-primary-foreground h-10">
+                  Upgrade to Premium
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
         {profile.status === 'pending' && (
-          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/50 p-6 text-primary">
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/50 p-6 text-primary border border-primary/10">
             <AlertCircle className="h-8 w-8 shrink-0" />
             <div>
               <p className="font-bold">Profile Pending Approval</p>
@@ -196,19 +208,25 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Activity className="h-5 w-5 text-primary" />
-                  Recent Activity
+                  Membership Status
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 border-b pb-3 last:border-0 last:pb-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-primary">
-                    <Heart className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Interest Received</p>
-                    <p className="text-xs text-muted-foreground">No recent interests</p>
-                  </div>
+                <div className="flex items-center justify-between border-b pb-3">
+                  <span className="text-sm text-muted-foreground">Current Plan</span>
+                  <Badge variant="outline">{profile.membership?.plan || 'Free'}</Badge>
                 </div>
+                {profile.membership?.expiresAt && (
+                   <div className="flex items-center justify-between border-b pb-3">
+                    <span className="text-sm text-muted-foreground">Expires On</span>
+                    <span className="text-sm font-medium">{format(new Date(profile.membership.expiresAt), 'MMM dd, yyyy')}</span>
+                  </div>
+                )}
+                {!isPremium && (
+                  <Link href="/membership" className="block pt-2">
+                    <Button variant="secondary" className="w-full text-xs h-8">View Premium Plans</Button>
+                  </Link>
+                )}
               </CardContent>
             </Card>
 
