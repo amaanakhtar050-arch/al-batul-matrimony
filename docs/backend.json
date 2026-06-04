@@ -77,6 +77,21 @@
       },
       "required": ["userId", "plan", "amount", "transactionId", "status"]
     },
+    "InterestRequest": {
+      "title": "Interest Request",
+      "description": "Matrimonial interest requests between members.",
+      "type": "object",
+      "properties": {
+        "fromUserId": { "type": "string" },
+        "fromUserName": { "type": "string" },
+        "toUserId": { "type": "string" },
+        "toUserName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUserId", "toUserId", "status"]
+    },
     "PlatformSettings": {
       "title": "Platform Settings",
       "description": "Global configuration settings for the Al Batul platform.",
@@ -101,6 +116,10 @@
     "/payments/{paymentId}": {
       "schema": "MembershipPayment",
       "description": "Stores manual payment verification requests."
+    },
+    "/interests/{interestId}": {
+      "schema": "InterestRequest",
+      "description": "Stores interest requests and matching status."
     },
     "/settings/platform": {
       "schema": "PlatformSettings",

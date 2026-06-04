@@ -23,23 +23,28 @@ import {
   Lock,
   Phone,
   MessageCircle,
-  Crown
+  Crown,
+  CheckCircle2,
+  Clock
 } from "lucide-react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import { useDoc, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, collection, query, where, addDoc, serverTimestamp, getDocs, limit } from "firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function ProfileDetailPage() {
   const { id } = useParams();
   const { toast } = useToast();
   const db = useFirestore();
+  const router = useRouter();
   const { user: currentUser } = useUser();
-  const [interestSent, setInterestSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id as string) : null, [db, id]);
   const { data: profile, loading: profileLoading } = useDoc(profileRef);
@@ -47,7 +52,36 @@ export default function ProfileDetailPage() {
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
+  // Check for existing interest request
+  const interestQuery = useMemoFirebase(() => {
+    if (!db || !currentUser || !id) return null;
+    return query(
+      collection(db, "interests"),
+      where("fromUserId", "==", currentUser.uid),
+      where("toUserId", "==", id),
+      limit(1)
+    );
+  }, [db, currentUser, id]);
+
+  const receivedInterestQuery = useMemoFirebase(() => {
+    if (!db || !currentUser || !id) return null;
+    return query(
+      collection(db, "interests"),
+      where("fromUserId", "==", id),
+      where("toUserId", "==", currentUser.uid),
+      limit(1)
+    );
+  }, [db, currentUser, id]);
+
+  const { data: sentInterests } = useCollection(interestQuery);
+  const { data: receivedInterests } = useCollection(receivedInterestQuery);
+
+  const existingSentInterest = sentInterests?.[0];
+  const existingReceivedInterest = receivedInterests?.[0];
+
   const handleSendInterest = () => {
+    if (!currentUser || !db || !profile) return;
+    
     if (viewerProfile?.status !== 'approved') {
       toast({
         title: "Account Restricted",
@@ -57,11 +91,38 @@ export default function ProfileDetailPage() {
       return;
     }
 
-    setInterestSent(true);
-    toast({
-      title: "Interest Sent",
-      description: `We've notified ${profile?.fullName || 'the user'} of your interest.`,
-    });
+    if (existingSentInterest) {
+      toast({ title: "Already Sent", description: "You have already sent an interest request to this member." });
+      return;
+    }
+
+    setIsSending(true);
+    const interestData = {
+      fromUserId: currentUser.uid,
+      fromUserName: viewerProfile?.fullName || viewerProfile?.name || currentUser.email,
+      toUserId: profile.id,
+      toUserName: profile.fullName,
+      status: "pending",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    const interestRef = collection(db, "interests");
+    addDoc(interestRef, interestData)
+      .then(() => {
+        toast({
+          title: "Interest Sent",
+          description: `We've notified ${profile.fullName} of your interest.`,
+        });
+      })
+      .catch(async (e) => {
+        errorEmitter.emit("permission-error", new FirestorePermissionError({
+          path: interestRef.path,
+          operation: 'create',
+          requestResourceData: interestData
+        }));
+      })
+      .finally(() => setIsSending(false));
   };
 
   if (profileLoading || viewerLoading) return (
@@ -83,6 +144,7 @@ export default function ProfileDetailPage() {
   );
 
   const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended && !viewerProfile?.isBanned;
+  const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
   const hasContactAccess = viewerProfile?.membership?.plan && ['Gold', 'Premium', 'Prime'].includes(viewerProfile.membership.plan);
 
   return (
@@ -115,19 +177,59 @@ export default function ProfileDetailPage() {
                     Complete your profile and wait for admin approval to interact.
                   </div>
                 )}
+                
                 <div className="flex gap-4">
-                  <Button 
-                    onClick={handleSendInterest} 
-                    disabled={interestSent || profile.status !== 'approved' || !canInteract}
-                    className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary hover:bg-secondary/90 text-primary-foreground"
-                  >
-                    <Heart className={`h-5 w-5 ${interestSent ? 'fill-current' : ''}`} />
-                    {interestSent ? 'Interest Sent' : 'Send Interest'}
-                  </Button>
-                  <Button variant="outline" size="icon" className="h-14 w-14" disabled={!canInteract}>
-                    <MessageSquare className="h-6 w-6" />
-                  </Button>
+                  {existingSentInterest ? (
+                    <Button 
+                      disabled 
+                      className="h-14 flex-1 gap-2 text-lg font-bold bg-muted text-muted-foreground cursor-not-allowed"
+                    >
+                      {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : existingSentInterest.status === 'accepted' ? <CheckCircle2 className="h-5 w-5" /> : <X className="h-5 w-5" />}
+                      Interest {existingSentInterest.status === 'pending' ? 'Pending' : existingSentInterest.status.charAt(0).toUpperCase() + existingSentInterest.status.slice(1)}
+                    </Button>
+                  ) : existingReceivedInterest ? (
+                    <Link href="/interests" className="flex-1">
+                      <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white">
+                        <Heart className="h-5 w-5 fill-white" />
+                        Manage Request
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button 
+                      onClick={handleSendInterest} 
+                      disabled={isSending || profile.status !== 'approved' || !canInteract}
+                      className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary hover:bg-secondary/90 text-primary-foreground"
+                    >
+                      <Heart className={`h-5 w-5 ${isSending ? 'animate-pulse' : ''}`} />
+                      {isSending ? 'Sending...' : 'Send Interest'}
+                    </Button>
+                  )}
+                  
+                  <Link href={isMatched ? "/messages" : "#"} className={!isMatched ? "opacity-50 cursor-not-allowed" : ""}>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-14 w-14" 
+                      disabled={!canInteract || !isMatched}
+                      onClick={() => {
+                        if (!isMatched) {
+                          toast({ 
+                            title: "Chat Locked", 
+                            description: "You can only chat after an interest request is accepted.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                    >
+                      <MessageSquare className="h-6 w-6" />
+                    </Button>
+                  </Link>
                 </div>
+                {!isMatched && canInteract && (
+                  <p className="text-[10px] text-center text-muted-foreground italic">
+                    Messaging enables automatically after mutual interest acceptance.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-6 pt-2 text-muted-foreground">
