@@ -6,19 +6,26 @@
       "description": "Comprehensive profile information for Al Batul members including partner preferences.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "age": { "type": "number" },
+        "fullName": { "type": "string" },
         "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "dob": { "type": "string", "format": "date" },
+        "age": { "type": "number" },
+        "height": { "type": "string" },
         "maritalStatus": { "type": "string", "enum": ["Single", "Divorced", "Widowed"] },
         "sect": { "type": "string", "enum": ["Sunni", "Shia", "Other"] },
         "education": { "type": "string" },
         "occupation": { "type": "string" },
+        "income": { "type": "string" },
         "city": { "type": "string" },
         "state": { "type": "string" },
         "country": { "type": "string" },
         "photoUrl": { "type": "string" },
+        "photos": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "about": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Approval status for the profile" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Verification status" },
         "role": { "type": "string", "enum": ["user", "admin"], "default": "user" },
         "isSuspended": { "type": "boolean", "default": false },
         "isBanned": { "type": "boolean", "default": false },
@@ -29,17 +36,20 @@
             "expiresAt": { "type": "string", "format": "date-time" }
           }
         },
-        "preferences": {
+        "partnerPreferences": {
           "type": "object",
           "properties": {
             "minAge": { "type": "number" },
             "maxAge": { "type": "number" },
-            "sect": { "type": "string" }
+            "sect": { "type": "string" },
+            "education": { "type": "string" },
+            "location": { "type": "string" }
           }
         },
+        "lastActiveAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "age", "gender", "sect", "status"]
+      "required": ["fullName", "age", "gender", "sect", "status", "city", "country"]
     },
     "MembershipPayment": {
       "title": "Membership Payment",
@@ -50,12 +60,11 @@
         "userName": { "type": "string" },
         "plan": { "type": "string", "enum": ["Gold", "Platinum"] },
         "amount": { "type": "number" },
-        "transactionId": { "type": "string", "description": "UTR or Transaction Reference Number" },
+        "transactionId": { "type": "string" },
         "screenshotUrl": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "processedAt": { "type": "string", "format": "date-time" },
-        "notes": { "type": "string" }
+        "processedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "plan", "amount", "transactionId", "status"]
     },
