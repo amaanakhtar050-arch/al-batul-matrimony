@@ -1,0 +1,47 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Serene landscape with Islamic architecture",
+      "imageUrl": "https://picsum.photos/seed/albatul-hero/1200/800",
+      "imageHint": "Islamic architecture serene"
+    },
+    {
+      "id": "profile-1",
+      "description": "Professional Muslim woman",
+      "imageUrl": "https://picsum.photos/seed/profile1/600/800",
+      "imageHint": "Muslim woman professional"
+    },
+    {
+      "id": "profile-2",
+      "description": "Muslim man in business attire",
+      "imageUrl": "https://picsum.photos/seed/profile2/600/800",
+      "imageHint": "Muslim man business"
+    },
+    {
+      "id": "profile-3",
+      "description": "Young Muslim woman smiling",
+      "imageUrl": "https://picsum.photos/seed/profile3/600/800",
+      "imageHint": "Muslim woman smiling"
+    },
+    {
+      "id": "profile-4",
+      "description": "Muslim man standing in park",
+      "imageUrl": "https://picsum.photos/seed/profile4/600/800",
+      "imageHint": "Muslim man park"
+    },
+    {
+      "id": "profile-5",
+      "description": "Educated Muslim professional",
+      "imageUrl": "https://picsum.photos/seed/profile5/600/800",
+      "imageHint": "Professional man"
+    },
+    {
+      "id": "profile-6",
+      "description": "Muslim woman with modern hijab",
+      "imageUrl": "https://picsum.photos/seed/profile6/600/800",
+      "imageHint": "Modern hijab woman"
+    }
+  ]
+}
