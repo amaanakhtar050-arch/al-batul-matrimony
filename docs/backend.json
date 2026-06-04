@@ -11,6 +11,7 @@
         "dob": { "type": "string", "format": "date" },
         "age": { "type": "number" },
         "height": { "type": "string" },
+        "weight": { "type": "string" },
         "maritalStatus": { "type": "string", "enum": ["Single", "Divorced", "Widowed"] },
         "sect": { "type": "string", "enum": ["Sunni", "Shia", "Other"] },
         "education": { "type": "string" },
@@ -19,6 +20,10 @@
         "city": { "type": "string" },
         "state": { "type": "string" },
         "country": { "type": "string" },
+        "languagesSpoken": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "photoUrl": { "type": "string" },
         "photos": { 
           "type": "array",

@@ -15,9 +15,10 @@ import {
   Ban, 
   MessageSquare,
   User,
-  Activity,
   DollarSign,
-  Ruler
+  Ruler,
+  Scale,
+  Languages
 } from "lucide-react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
@@ -114,7 +115,7 @@ export default function ProfileDetailPage() {
               <Badge variant="outline" className="h-8 border-secondary/20 bg-secondary/5 px-4 text-sm text-secondary">{profile.maritalStatus}</Badge>
             </div>
 
-            <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
+            <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="h-4 w-4" />
@@ -142,6 +143,20 @@ export default function ProfileDetailPage() {
                   <span className="text-[10px] font-bold uppercase tracking-widest">Height</span>
                 </div>
                 <p className="font-medium">{profile.height || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Scale className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Weight</span>
+                </div>
+                <p className="font-medium">{profile.weight || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Languages className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Languages</span>
+                </div>
+                <p className="font-medium">{profile.languagesSpoken?.join(', ') || 'N/A'}</p>
               </div>
             </div>
 

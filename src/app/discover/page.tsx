@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -6,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Filter, Search } from "lucide-react";
-import { useState, useMemo } from "react";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { Filter, Search, Lock } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function DiscoverPage() {
   const [ageRange, setAgeRange] = useState([20, 60]);
@@ -17,6 +20,21 @@ export default function DiscoverPage() {
   const [sectFilter, setSectFilter] = useState("all");
   
   const db = useFirestore();
+  const { user, loading: authLoading } = useUser();
+  const router = useRouter();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const approvedUsersQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -26,13 +44,13 @@ export default function DiscoverPage() {
     );
   }, [db]);
 
-  const { data: profiles, loading } = useCollection(approvedUsersQuery);
+  const { data: profiles, loading: profilesLoading } = useCollection(approvedUsersQuery);
 
   const filteredProfiles = useMemo(() => {
     if (!profiles) return [];
     return profiles.filter(p => {
-      // Exclude suspended or banned users even if they have "approved" status
-      if (p.isSuspended || p.isBanned) return false;
+      // Exclude self and restricted accounts
+      if (p.id === user?.uid || p.isSuspended || p.isBanned) return false;
 
       const matchesAge = p.age >= ageRange[0] && p.age <= ageRange[1];
       const matchesSect = sectFilter === "all" || p.sect.toLowerCase() === sectFilter.toLowerCase();
@@ -43,7 +61,46 @@ export default function DiscoverPage() {
       
       return matchesAge && matchesSect && matchesSearch;
     });
-  }, [profiles, ageRange, sectFilter, searchTerm]);
+  }, [profiles, ageRange, sectFilter, searchTerm, user]);
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+      </div>
+    );
+  }
+
+  // Restrictions check
+  if (!profile || profile.status !== 'approved') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto flex items-center justify-center px-4 py-20">
+           <div className="text-center max-w-md">
+             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/50 text-primary">
+                <Lock className="h-10 w-10" />
+             </div>
+             <h1 className="text-3xl font-bold mb-4 font-headline">Access Restricted</h1>
+             <p className="text-muted-foreground mb-8">
+               {!profile 
+                 ? "You must complete your profile before you can discover potential matches." 
+                 : "Your profile is currently under review. Once approved by our administrators, you'll gain full access to search and view matches."}
+             </p>
+             {!profile ? (
+                <Link href="/setup-profile">
+                  <Button size="lg" className="w-full h-12">Complete Profile Now</Button>
+                </Link>
+             ) : (
+                <Link href="/dashboard">
+                  <Button variant="outline" size="lg" className="w-full h-12">Go to Dashboard</Button>
+                </Link>
+             )}
+           </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,7 +161,7 @@ export default function DiscoverPage() {
           </div>
         </div>
 
-        {loading ? (
+        {profilesLoading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
           </div>
@@ -130,7 +187,7 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
-            <p className="text-xl font-medium text-muted-foreground">No approved profiles found.</p>
+            <p className="text-xl font-medium text-muted-foreground">No matching profiles found.</p>
             <p className="text-sm text-muted-foreground">Try adjusting your filters or search criteria.</p>
           </div>
         )}

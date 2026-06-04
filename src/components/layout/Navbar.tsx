@@ -2,20 +2,22 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { doc } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const { user, loading } = useUser();
   const db = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -24,12 +26,20 @@ export function Navbar() {
 
   const { data: profile } = useDoc(profileRef);
   const isAdmin = profile?.role === 'admin';
+  const hasProfile = !!profile;
+  const isApproved = profile?.status === 'approved';
 
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/');
   };
+
+  const navLinks = [
+    { href: "/discover", label: "Discover", icon: Search, restricted: true },
+    { href: "/interests", label: "Interests", icon: Heart, restricted: true },
+    { href: "/messages", label: "Messages", icon: MessageSquare, restricted: true },
+  ];
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
@@ -40,18 +50,29 @@ export function Navbar() {
 
         {/* Desktop Menu */}
         <div className="hidden items-center gap-6 md:flex">
-          <Link href="/discover" className="flex items-center gap-1.5 text-sm font-medium hover:text-primary">
-            <Search className="h-4 w-4" />
-            Discover
-          </Link>
-          <Link href="/interests" className="flex items-center gap-1.5 text-sm font-medium hover:text-primary">
-            <Heart className="h-4 w-4" />
-            Interests
-          </Link>
-          <Link href="/messages" className="flex items-center gap-1.5 text-sm font-medium hover:text-primary">
-            <MessageSquare className="h-4 w-4" />
-            Messages
-          </Link>
+          {navLinks.map((link) => {
+            const isDisabled = link.restricted && (!hasProfile || !isApproved);
+            const active = pathname === link.href;
+            
+            return (
+              <Link 
+                key={link.href}
+                href={isDisabled ? "#" : link.href} 
+                className={cn(
+                  "flex items-center gap-1.5 text-sm font-medium transition-colors",
+                  active ? "text-primary font-bold" : "text-muted-foreground hover:text-primary",
+                  isDisabled && "cursor-not-allowed opacity-50"
+                )}
+                onClick={(e) => {
+                  if (isDisabled) e.preventDefault();
+                }}
+              >
+                {isDisabled ? <Lock className="h-3.5 w-3.5" /> : <link.icon className="h-4 w-4" />}
+                {link.label}
+              </Link>
+            );
+          })}
+          
           {isAdmin && (
             <Link href="/admin" className="flex items-center gap-1.5 text-sm font-bold text-primary hover:opacity-80">
               <ShieldAlert className="h-4 w-4" />
@@ -68,7 +89,7 @@ export function Navbar() {
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-secondary"></span>
               </Button>
               <Link href="/dashboard">
-                <Button variant="default" className="hidden gap-2 md:flex">
+                <Button variant={pathname === '/dashboard' ? 'default' : 'outline'} className="hidden gap-2 md:flex">
                   <User className="h-4 w-4" />
                   My Profile
                 </Button>
@@ -97,14 +118,30 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right">
               <div className="flex flex-col gap-6 py-8">
-                <Link href="/discover" className="text-lg font-medium">Discover</Link>
-                <Link href="/interests" className="text-lg font-medium">Interests</Link>
-                <Link href="/messages" className="text-lg font-medium">Messages</Link>
+                {navLinks.map((link) => {
+                  const isDisabled = link.restricted && (!hasProfile || !isApproved);
+                  return (
+                    <Link 
+                      key={link.href}
+                      href={isDisabled ? "#" : link.href} 
+                      className={cn(
+                        "text-lg font-medium flex items-center gap-2",
+                        isDisabled && "opacity-50 cursor-not-allowed"
+                      )}
+                      onClick={(e) => {
+                        if (isDisabled) e.preventDefault();
+                      }}
+                    >
+                      {isDisabled && <Lock className="h-4 w-4" />}
+                      {link.label}
+                    </Link>
+                  );
+                })}
                 {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
                 <Link href="/dashboard" className="text-lg font-medium">My Profile</Link>
                 <Link href="/membership" className="text-lg font-medium">Premium Membership</Link>
                 {user && (
-                   <Button variant="destructive" className="w-full" onClick={handleLogout}>
+                   <Button variant="destructive" className="w-full mt-4" onClick={handleLogout}>
                      Logout
                    </Button>
                 )}

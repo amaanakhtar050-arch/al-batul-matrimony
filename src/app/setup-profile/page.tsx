@@ -15,7 +15,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, CheckCircle2 } from 'lucide-react';
+import { Camera, Save } from 'lucide-react';
 import Image from 'next/image';
 
 export default function SetupProfilePage() {
@@ -30,6 +30,7 @@ export default function SetupProfilePage() {
     age: '',
     gender: '',
     height: '',
+    weight: '',
     maritalStatus: '',
     sect: '',
     education: '',
@@ -38,6 +39,7 @@ export default function SetupProfilePage() {
     city: '',
     state: '',
     country: '',
+    languagesSpoken: '',
     photoUrl: '',
     about: '',
     minAgePref: '18',
@@ -58,29 +60,32 @@ export default function SetupProfilePage() {
       return;
     }
 
-    if (!user.emailVerified) {
-       toast({
-         title: "Email Not Verified",
-         description: "Please verify your email address to complete your profile registration.",
-         variant: "destructive"
-       });
-       router.push('/login');
-       return;
-    }
-
     async function checkExistingProfile() {
       if (!db || !user) return;
       try {
         const docRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().status === 'approved') {
-          router.push('/dashboard');
-        } else if (docSnap.exists()) {
+        if (docSnap.exists()) {
           const data = docSnap.data();
           setFormData(prev => ({
             ...prev,
             ...data,
-            fullName: data.fullName || data.name || '',
+            fullName: data.fullName || '',
+            dob: data.dob || '',
+            age: data.age?.toString() || '',
+            height: data.height || '',
+            weight: data.weight || '',
+            maritalStatus: data.maritalStatus || '',
+            sect: data.sect || '',
+            education: data.education || '',
+            occupation: data.occupation || '',
+            income: data.income || '',
+            city: data.city || '',
+            state: data.state || '',
+            country: data.country || '',
+            languagesSpoken: data.languagesSpoken?.join(', ') || '',
+            photoUrl: data.photoUrl || '',
+            about: data.about || '',
             minAgePref: data.partnerPreferences?.minAge?.toString() || '18',
             maxAgePref: data.partnerPreferences?.maxAge?.toString() || '40',
             sectPref: data.partnerPreferences?.sect || '',
@@ -95,7 +100,7 @@ export default function SetupProfilePage() {
       }
     }
     checkExistingProfile();
-  }, [user, authLoading, db, router, toast]);
+  }, [user, authLoading, db, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,12 +108,15 @@ export default function SetupProfilePage() {
     setSaving(true);
 
     const userDocRef = doc(db, 'users', user.uid);
+    const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
+    
     const profileData = {
       fullName: formData.fullName,
       dob: formData.dob,
       age: parseInt(formData.age),
       gender: formData.gender,
       height: formData.height,
+      weight: formData.weight,
       maritalStatus: formData.maritalStatus,
       sect: formData.sect,
       education: formData.education,
@@ -117,6 +125,7 @@ export default function SetupProfilePage() {
       city: formData.city,
       state: formData.state,
       country: formData.country,
+      languagesSpoken: languagesArray,
       photoUrl: formData.photoUrl || `https://picsum.photos/seed/${user.uid}/600/800`,
       about: formData.about,
       status: 'pending',
@@ -139,7 +148,7 @@ export default function SetupProfilePage() {
       .then(() => {
         toast({
           title: "Profile Submitted",
-          description: "Your profile is now pending admin approval.",
+          description: "Your profile has been saved and is now pending admin approval.",
         });
         router.push('/dashboard');
       })
@@ -166,8 +175,8 @@ export default function SetupProfilePage() {
       <main className="container mx-auto px-4 py-12 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <header className="mb-10 text-center">
-            <h1 className="text-4xl font-bold font-headline mb-2">Create Your Profile</h1>
-            <p className="text-lg text-muted-foreground">Please provide accurate information for a better matching experience.</p>
+            <h1 className="text-4xl font-bold font-headline mb-2">Complete Your Profile</h1>
+            <p className="text-lg text-muted-foreground">Complete your profile to unlock all matrimonial features.</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -175,7 +184,7 @@ export default function SetupProfilePage() {
               <aside className="lg:col-span-1 space-y-6">
                 <Card className="border-none shadow-md">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-bold">Display Photo</CardTitle>
+                    <CardTitle className="text-lg font-bold">Profile Photo</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center gap-6">
                     <div className="group relative h-48 w-48 overflow-hidden rounded-3xl bg-muted shadow-inner">
@@ -184,15 +193,15 @@ export default function SetupProfilePage() {
                       ) : (
                         <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground/40">
                           <Camera className="h-14 w-14 mb-2" />
-                          <span className="text-xs">No Photo</span>
+                          <span className="text-xs text-center px-4">Upload a clear photo to increase visibility</span>
                         </div>
                       )}
                     </div>
                     <div className="w-full space-y-3">
-                      <Label htmlFor="photoUrl" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Portrait URL</Label>
+                      <Label htmlFor="photoUrl" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Photo URL</Label>
                       <Input 
                         id="photoUrl" 
-                        placeholder="Link to your portrait..." 
+                        placeholder="Paste image link here..." 
                         value={formData.photoUrl}
                         onChange={(e) => setFormData({...formData, photoUrl: e.target.value})}
                         className="bg-muted/50"
@@ -219,7 +228,7 @@ export default function SetupProfilePage() {
                     <div className="space-y-1">
                       <Label className="text-xs">Preferred Sect</Label>
                       <Select value={formData.sectPref} onValueChange={(v) => setFormData({...formData, sectPref: v})}>
-                        <SelectTrigger><SelectValue placeholder="Sect" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select Sect" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Sunni">Sunni</SelectItem>
                           <SelectItem value="Shia">Shia</SelectItem>
@@ -232,7 +241,7 @@ export default function SetupProfilePage() {
                       <Input placeholder="e.g. Bachelor's" value={formData.eduPref} onChange={(e) => setFormData({...formData, eduPref: e.target.value})} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Preferred Location</Label>
+                      <Label className="text-xs">Preferred Region</Label>
                       <Input placeholder="City or Country" value={formData.locPref} onChange={(e) => setFormData({...formData, locPref: e.target.value})} />
                     </div>
                   </CardContent>
@@ -241,11 +250,11 @@ export default function SetupProfilePage() {
 
               <div className="lg:col-span-2 space-y-8">
                 <Card className="border-none shadow-md">
-                  <CardHeader><CardTitle className="font-headline text-2xl">Personal Details</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="font-headline text-2xl">Personal Information</CardTitle></CardHeader>
                   <CardContent className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name</Label>
-                      <Input id="fullName" placeholder="Full legal name" value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} required />
+                      <Input id="fullName" placeholder="Full name as per ID" value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="dob">Date of Birth</Label>
@@ -253,11 +262,17 @@ export default function SetupProfilePage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="age">Age</Label>
-                      <Input id="age" type="number" placeholder="28" value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} required />
+                      <Input id="age" type="number" placeholder="Enter age" value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})} required />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="height">Height</Label>
-                      <Input id="height" placeholder="e.g. 5'8\"" value={formData.height} onChange={(e) => setFormData({...formData, height: e.target.value})} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="height">Height</Label>
+                        <Input id="height" placeholder="e.g. 5'7\"" value={formData.height} onChange={(e) => setFormData({...formData, height: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="weight">Weight</Label>
+                        <Input id="weight" placeholder="e.g. 70 kg" value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})} />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gender">Gender</Label>
@@ -272,11 +287,11 @@ export default function SetupProfilePage() {
                     <div className="space-y-2">
                       <Label htmlFor="maritalStatus">Marital Status</Label>
                       <Select value={formData.maritalStatus} onValueChange={(v) => setFormData({...formData, maritalStatus: v})} required>
-                        <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Single">Single</SelectItem>
                           <SelectItem value="Divorced">Divorced</SelectItem>
-                          <SelectItem value="Widowed">Widowed</SelectItem>
+                          <SelectItem value="Widowed">Widow/Widower</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -291,6 +306,10 @@ export default function SetupProfilePage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="languagesSpoken">Languages Spoken</Label>
+                      <Input id="languagesSpoken" placeholder="English, Urdu, etc." value={formData.languagesSpoken} onChange={(e) => setFormData({...formData, languagesSpoken: e.target.value})} />
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -299,7 +318,7 @@ export default function SetupProfilePage() {
                   <CardContent className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="education">Education</Label>
-                      <Input id="education" placeholder="e.g. Master's in IT" value={formData.education} onChange={(e) => setFormData({...formData, education: e.target.value})} required />
+                      <Input id="education" placeholder="e.g. MBA, MBBS" value={formData.education} onChange={(e) => setFormData({...formData, education: e.target.value})} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="occupation">Occupation</Label>
@@ -307,7 +326,7 @@ export default function SetupProfilePage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="income">Annual Income</Label>
-                      <Input id="income" placeholder="e.g. $60,000" value={formData.income} onChange={(e) => setFormData({...formData, income: e.target.value})} />
+                      <Input id="income" placeholder="e.g. ₹12,00,000" value={formData.income} onChange={(e) => setFormData({...formData, income: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="city">City</Label>
@@ -331,8 +350,8 @@ export default function SetupProfilePage() {
                   <CardContent>
                     <Textarea 
                       id="about" 
-                      placeholder="Share about yourself, your values, and life goals..." 
-                      className="min-h-[120px]"
+                      placeholder="Tell us about yourself, your family values, and what you seek in a life partner..." 
+                      className="min-h-[150px]"
                       value={formData.about}
                       onChange={(e) => setFormData({...formData, about: e.target.value})}
                       required
@@ -341,7 +360,7 @@ export default function SetupProfilePage() {
                   <CardFooter className="flex justify-end gap-4 border-t py-4">
                     <Button type="submit" size="lg" className="gap-2 font-bold" disabled={saving}>
                       <Save className="h-4 w-4" />
-                      {saving ? 'Saving...' : 'Submit Profile'}
+                      {saving ? 'Submitting...' : 'Complete Profile'}
                     </Button>
                   </CardFooter>
                 </Card>
