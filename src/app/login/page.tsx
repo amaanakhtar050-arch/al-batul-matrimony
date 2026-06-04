@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -13,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn, KeyRound } from 'lucide-react';
+import { LogIn, KeyRound, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -47,10 +46,19 @@ export default function LoginPage() {
       // Check if profile is complete
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
       
-      if (!userSnap.exists() || !userSnap.data().isProfileComplete) {
+      if (!userSnap.exists() || !userData?.isProfileComplete) {
+        toast({
+          title: "Welcome!",
+          description: "Please complete your profile to access all features.",
+        });
         router.push('/setup-profile');
       } else {
+        toast({
+          title: "Logged in successfully",
+          description: `Welcome back, ${userData.fullName || 'Member'}!`,
+        });
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -116,6 +124,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required 
                   className="h-11"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -124,7 +133,7 @@ export default function LoginPage() {
                   <button 
                     type="button"
                     onClick={handleForgotPassword}
-                    disabled={resetLoading}
+                    disabled={resetLoading || loading}
                     className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
                   >
                     <KeyRound className="h-3 w-3" />
@@ -138,19 +147,25 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                   className="h-11"
+                  disabled={loading}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-                {loading ? 'Logging in...' : 'Sign In'}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : 'Sign In'}
               </Button>
               <div className="relative w-full text-center">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-muted"></span></div>
                 <span className="relative bg-background px-2 text-xs text-muted-foreground uppercase">New to Al Batul?</span>
               </div>
               <Link href="/register" className="w-full">
-                <Button variant="outline" type="button" className="w-full h-11">
+                <Button variant="outline" type="button" className="w-full h-11" disabled={loading}>
                   Create a New Account
                 </Button>
               </Link>

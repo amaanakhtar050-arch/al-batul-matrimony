@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Mail, ShieldCheck } from 'lucide-react';
+import { UserPlus, Mail, ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -53,8 +52,8 @@ export default function RegisterPage() {
       await sendEmailVerification(userCredential.user);
       setVerificationSent(true);
       toast({
-        title: "Success",
-        description: "A verification email has been sent to your address.",
+        title: "Account created!",
+        description: "A verification email has been sent to your address. Please verify it to continue.",
       });
     } catch (error: any) {
       toast({
@@ -94,7 +93,7 @@ export default function RegisterPage() {
                 Go to Login Page
               </Button>
               <p className="text-sm text-muted-foreground">
-                Didn't receive the email? Check your spam folder or contact support.
+                Didn't receive the email? Check your spam folder or try again later.
               </p>
             </CardFooter>
           </Card>
@@ -127,6 +126,7 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required 
                   className="h-11"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -139,6 +139,7 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                   className="h-11"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -151,12 +152,18 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required 
                   className="h-11"
+                  disabled={loading}
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full h-12 text-lg font-semibold" disabled={loading}>
-                {loading ? 'Creating account...' : 'Create Account'}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : 'Create Account'}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}

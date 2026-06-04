@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from "next/link";
@@ -11,6 +10,7 @@ import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
 import { doc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export function Navbar() {
   const { user, loading } = useUser();
@@ -18,6 +18,7 @@ export function Navbar() {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   const profileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -26,13 +27,25 @@ export function Navbar() {
 
   const { data: profile } = useDoc(profileRef);
   const isAdmin = profile?.role === 'admin';
-  const hasProfile = !!profile;
+  const hasProfile = !!profile && profile.isProfileComplete;
   const isApproved = profile?.status === 'approved';
 
   const handleLogout = async () => {
     if (!auth) return;
-    await signOut(auth);
-    router.push('/');
+    try {
+      await signOut(auth);
+      toast({
+        title: "Logged out",
+        description: "You have been successfully signed out.",
+      });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Logout failed",
+        description: error.message,
+      });
+    }
   };
 
   const navLinks = [
@@ -64,7 +77,13 @@ export function Navbar() {
                   isDisabled && "cursor-not-allowed opacity-50"
                 )}
                 onClick={(e) => {
-                  if (isDisabled) e.preventDefault();
+                  if (isDisabled) {
+                    e.preventDefault();
+                    toast({
+                      title: "Access Restricted",
+                      description: !hasProfile ? "Please complete your profile first." : "Your profile is pending admin approval.",
+                    });
+                  }
                 }}
               >
                 {isDisabled ? <Lock className="h-3.5 w-3.5" /> : <link.icon className="h-4 w-4" />}
@@ -91,10 +110,10 @@ export function Navbar() {
               <Link href="/dashboard">
                 <Button variant={pathname === '/dashboard' ? 'default' : 'outline'} className="hidden gap-2 md:flex">
                   <User className="h-4 w-4" />
-                  My Profile
+                  My Dashboard
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="Log Out">
                 <LogOut className="h-5 w-5" />
               </Button>
             </>
@@ -129,7 +148,13 @@ export function Navbar() {
                         isDisabled && "opacity-50 cursor-not-allowed"
                       )}
                       onClick={(e) => {
-                        if (isDisabled) e.preventDefault();
+                        if (isDisabled) {
+                          e.preventDefault();
+                          toast({
+                            title: "Access Restricted",
+                            description: !hasProfile ? "Please complete your profile first." : "Your profile is pending admin approval.",
+                          });
+                        }
                       }}
                     >
                       {isDisabled && <Lock className="h-4 w-4" />}
@@ -138,8 +163,8 @@ export function Navbar() {
                   );
                 })}
                 {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
-                <Link href="/dashboard" className="text-lg font-medium">My Profile</Link>
-                <Link href="/membership" className="text-lg font-medium">Premium Membership</Link>
+                <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>
+                <Link href="/membership" className="text-lg font-medium">Membership</Link>
                 {user && (
                    <Button variant="destructive" className="w-full mt-4" onClick={handleLogout}>
                      Logout
