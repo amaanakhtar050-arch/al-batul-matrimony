@@ -3,13 +3,12 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { 
   Check, 
-  X, 
   Search, 
   Settings, 
   Users, 
@@ -42,7 +41,6 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
 
 export default function AdminDashboard() {
   const db = useFirestore();
@@ -78,15 +76,20 @@ export default function AdminDashboard() {
       processedAt: serverTimestamp(),
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: paymentRef.path, operation: "update" })));
 
+    // Calculate expiry based on plan
     const expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 3);
+    if (plan === "Silver") expiryDate.setMonth(expiryDate.getMonth() + 3);
+    else if (plan === "Gold") expiryDate.setMonth(expiryDate.getMonth() + 6);
+    else if (plan === "Premium") expiryDate.setMonth(expiryDate.getMonth() + 12);
+    else if (plan === "Prime") expiryDate.setFullYear(expiryDate.getFullYear() + 10); // Effectively lifetime
+    else expiryDate.setMonth(expiryDate.getMonth() + 1); // Default 1 month for Registration fee level
 
     updateDoc(userRef, {
       "membership.plan": plan,
       "membership.expiresAt": expiryDate.toISOString(),
       status: "approved"
     }).then(() => {
-      toast({ title: "Payment Approved", description: `${plan} membership activated for user.` });
+      toast({ title: "Payment Approved", description: `${plan} membership activated.` });
     });
   };
 
@@ -110,7 +113,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (!db || !confirm("Are you sure you want to delete this user? This action is irreversible.")) return;
+    if (!db || !confirm("Delete this user?")) return;
     const userRef = doc(db, "users", userId);
     deleteDoc(userRef).then(() => {
       toast({ title: "User Deleted", variant: "destructive" });
@@ -127,8 +130,7 @@ export default function AdminDashboard() {
 
   const filteredUsers = allUsers?.filter(u => 
     u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    u.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -138,15 +140,15 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold font-headline">Super-Admin Panel</h1>
-            <p className="text-muted-foreground">Manage platform users, approvals, and global configuration.</p>
+            <h1 className="text-3xl font-bold font-headline text-primary">Super-Admin Panel</h1>
+            <p className="text-muted-foreground text-sm">Platform management and manual payment audit.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Search by name or city..." 
-                className="w-64 pl-10" 
+                placeholder="Search members..." 
+                className="w-64 pl-10 h-10" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -154,54 +156,99 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <Tabs defaultValue="approvals" className="w-full">
+        <Tabs defaultValue="payments" className="w-full">
           <TabsList className="mb-6 h-auto p-1 bg-muted/50">
-            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
-              <UserCheck className="h-4 w-4" /> Pending Approvals
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2 px-4 py-2">
-              <Users className="h-4 w-4" /> All Members
-            </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2 px-4 py-2">
               <CreditCard className="h-4 w-4" /> Payments
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
+              <UserCheck className="h-4 w-4" /> Approvals
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2 px-4 py-2">
+              <Users className="h-4 w-4" /> Members
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2 px-4 py-2">
               <Settings className="h-4 w-4" /> Settings
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="payments">
+            <Card className="border-none shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Plan & Amount</TableHead>
+                    <TableHead>UTR / Trans ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments?.map((payment: any) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="font-semibold text-sm">{payment.userName}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-xs">{payment.plan}</span>
+                          <span className="text-xs text-muted-foreground">₹{payment.amount?.toLocaleString()}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{payment.transactionId}</TableCell>
+                      <TableCell>
+                        <Badge variant={payment.status === 'approved' ? 'default' : payment.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
+                          {payment.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {payment.status === 'pending' && (
+                          <div className="flex justify-end gap-2">
+                             <Button size="sm" className="bg-green-600 h-8" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
+                               Verify
+                             </Button>
+                             <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => handleRejectPayment(payment.id)}>
+                               Reject
+                             </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!payments?.length && (
+                    <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No payment history found.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="approvals">
             <Card className="border-none shadow-sm">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead>User Information</TableHead>
-                    <TableHead>Demographics</TableHead>
-                    <TableHead className="text-right">Verification Action</TableHead>
+                    <TableHead>Candidate</TableHead>
+                    <TableHead>Profile Details</TableHead>
+                    <TableHead className="text-right">Review Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
                     <TableRow key={user.id}>
-                      <TableCell>
-                         <div className="flex flex-col">
-                            <span className="font-semibold">{user.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{user.email}</span>
-                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{user.age}Y • {user.gender} • {user.sect}</span>
+                      <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {user.age}Y • {user.gender} • {user.sect} • {user.city}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
-                            <Check className="h-4 w-4 mr-1" /> Approve
+                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
+                            <Check className="h-3 w-3 mr-1" /> Approve
                           </Button>
-                          <Button size="sm" variant="outline" className="text-destructive border-destructive hover:bg-destructive/5" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
-                            <UserX className="h-4 w-4 mr-1" /> Reject
+                          <Button size="sm" variant="outline" className="text-destructive border-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
+                            Reject
                           </Button>
                           <Link href={`/profiles/${user.id}`}>
-                            <Button size="sm" variant="ghost">View</Button>
+                            <Button size="sm" variant="ghost" className="h-8">View</Button>
                           </Link>
                         </div>
                       </TableCell>
@@ -220,68 +267,48 @@ export default function AdminDashboard() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead>Member Details</TableHead>
+                    <TableHead>Member</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Membership</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Subscription</TableHead>
+                    <TableHead className="text-right">Controls</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loadingUsers ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20">Loading members...</TableCell></TableRow>
-                  ) : filteredUsers?.map((user: any) => (
-                    <TableRow key={user.id} className={`${user.isBanned ? "bg-red-50/50" : user.isSuspended ? "bg-orange-50/50" : ""} transition-colors`}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
-                            {user.fullName?.charAt(0) || 'U'}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-sm">{user.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{user.city}, {user.country}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex gap-1.5">
-                            <Badge variant={user.status === 'approved' ? 'default' : user.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px] h-5">
-                              {user.status}
-                            </Badge>
-                          </div>
-                          {user.isSuspended && <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50 text-[10px] h-5 w-fit">Suspended</Badge>}
-                          {user.isBanned && <Badge variant="destructive" className="text-[10px] h-5 w-fit">Banned</Badge>}
-                        </div>
-                      </TableCell>
+                  {filteredUsers?.map((user: any) => (
+                    <TableRow key={user.id} className={user.isBanned ? "bg-red-50/30" : ""}>
                       <TableCell>
                         <div className="flex flex-col">
-                          <Badge variant="outline" className="w-fit text-primary border-primary/20 bg-primary/5">{user.membership?.plan || 'Free'}</Badge>
+                          <span className="font-semibold text-sm">{user.fullName}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{user.id.slice(0, 8)}</span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4">
+                            {user.status}
+                          </Badge>
+                          {user.isSuspended && <Badge variant="outline" className="text-orange-600 text-[9px] h-4">Suspended</Badge>}
+                          {user.isBanned && <Badge variant="destructive" className="text-[9px] h-4">Banned</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">{user.membership?.plan || 'Free'}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Link href={`/profiles/${user.id}`}>
-                            <Button size="icon" variant="ghost" title="View Profile">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
                           <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            title={user.isSuspended ? "Unsuspend" : "Suspend"} 
+                            size="icon" variant="ghost" className="h-8 w-8" 
                             onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}
                           >
                             {user.isSuspended ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-orange-600" />}
                           </Button>
                           <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            title={user.isBanned ? "Unban" : "Ban"} 
+                            size="icon" variant="ghost" className="h-8 w-8"
                             onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}
                           >
                             <Ban className={`h-4 w-4 ${user.isBanned ? "text-primary" : "text-destructive"}`} />
                           </Button>
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteUser(user.id)}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteUser(user.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -293,64 +320,20 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="payments">
-            <Card className="border-none shadow-sm">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Payer</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Transaction ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments?.map((payment: any) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-semibold">{payment.userName}</TableCell>
-                      <TableCell>{payment.plan} (₹{payment.amount})</TableCell>
-                      <TableCell className="font-mono text-xs">{payment.transactionId}</TableCell>
-                      <TableCell>
-                        <Badge variant={payment.status === 'approved' ? 'default' : payment.status === 'rejected' ? 'destructive' : 'secondary'}>
-                          {payment.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {payment.status === 'pending' && (
-                          <div className="flex justify-end gap-2">
-                             <Button size="sm" className="bg-green-600" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
-                               Verify
-                             </Button>
-                             <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRejectPayment(payment.id)}>
-                               Reject
-                             </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="settings">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform Controls</CardTitle>
-                </CardHeader>
+              <Card className="border-none shadow-sm">
+                <CardHeader><CardTitle className="text-lg">System Controls</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <Label>Maintenance Mode</Label>
+                    <Label className="text-sm">Maintenance Mode</Label>
                     <Switch 
                       checked={settings?.maintenanceMode || false} 
                       onCheckedChange={(val) => handleUpdateSettings({ maintenanceMode: val })}
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label>Open Registrations</Label>
+                    <Label className="text-sm">Open Registrations</Label>
                     <Switch 
                       checked={settings?.registrationEnabled !== false} 
                       onCheckedChange={(val) => handleUpdateSettings({ registrationEnabled: val })}
@@ -358,18 +341,18 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Payment Config</CardTitle>
-                </CardHeader>
+              <Card className="border-none shadow-sm">
+                <CardHeader><CardTitle className="text-lg">Payment Config</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Platform UPI ID</Label>
+                    <Label className="text-xs">Global UPI ID</Label>
                     <Input 
                       placeholder="e.g. albatul@upi" 
                       defaultValue={settings?.upiId} 
+                      className="h-10"
                       onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })}
                     />
+                    <p className="text-[10px] text-muted-foreground">This ID is shown to users on the membership page.</p>
                   </div>
                 </CardContent>
               </Card>
