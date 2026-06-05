@@ -106,7 +106,11 @@ export default function DashboardPage() {
     if (!authLoading && user && db && !loadingNotifications && notifications.length === 0) {
       const notificationsRef = collection(db, 'users', user.uid, 'notifications');
       addDoc(notificationsRef, {
-        text: "Welcome to Al Batul Matrimony.",
+        type: 'welcome',
+        title: 'Welcome to Al Batul Matrimony',
+        description: "Welcome to Al Batul Matrimony. We are delighted to have you on your journey towards completing your deen.",
+        senderId: 'system',
+        receiverId: user.uid,
         read: false,
         createdAt: serverTimestamp()
       });

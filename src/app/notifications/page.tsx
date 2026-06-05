@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -106,10 +105,10 @@ export default function NotificationsPage() {
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className={cn("text-sm font-bold", !notification.read ? "text-foreground" : "text-muted-foreground")}>
-                        {notification.title}
+                        {notification.title || "Notification"}
                       </p>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        {notification.description}
+                        {notification.description || notification.message || "No additional details provided."}
                       </p>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-wider pt-1">
                         <Clock className="h-3 w-3" />

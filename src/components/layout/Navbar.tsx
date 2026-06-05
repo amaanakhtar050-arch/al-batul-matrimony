@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from "next/link";
@@ -160,8 +159,12 @@ export function Navbar() {
                           onClick={() => !n.read && handleMarkAsRead(n.id)}
                         >
                           <div className="flex-1 space-y-1">
-                            <p className={cn("text-[11px]", n.read ? "text-muted-foreground" : "font-bold text-foreground")}>{n.title}</p>
-                            <p className="text-[10px] text-muted-foreground line-clamp-1">{n.description}</p>
+                            <p className={cn("text-[11px]", n.read ? "text-muted-foreground" : "font-bold text-foreground")}>
+                              {n.title || "Notification"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-1">
+                              {n.description || n.message || "View details..."}
+                            </p>
                             <span className="text-[9px] text-muted-foreground opacity-70">
                               {n.createdAt?.toDate() ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                             </span>
