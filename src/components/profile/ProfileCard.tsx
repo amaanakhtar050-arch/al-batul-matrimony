@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User } from "lucide-react";
+import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User, Users } from "lucide-react";
 import Link from "next/link";
 
 interface ProfileCardProps {
@@ -16,6 +16,7 @@ interface ProfileCardProps {
     city: string;
     education: string;
     occupation: string;
+    maritalStatus: string;
     imageUrl: string;
     imageHint: string;
     isVerified: boolean;
@@ -26,7 +27,7 @@ interface ProfileCardProps {
 export function ProfileCard({ profile, tall = false }: ProfileCardProps) {
   return (
     <Link href={`/profiles/${profile.id}`}>
-      <Card className={`group relative overflow-hidden transition-all hover:shadow-xl ${tall ? 'masonry-item-tall' : 'masonry-item'} border-none bg-transparent h-[400px]`}>
+      <Card className={`group relative overflow-hidden transition-all hover:shadow-xl ${tall ? 'masonry-item-tall' : 'masonry-item'} border-none bg-transparent h-[420px]`}>
         <div className="relative h-full w-full bg-muted">
           {profile.imageUrl ? (
             <Image
@@ -41,9 +42,9 @@ export function ProfileCard({ profile, tall = false }: ProfileCardProps) {
               <User className="h-24 w-24" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
           
-          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+          <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
             <div className="mb-2 flex items-center gap-2">
               <h3 className="text-xl font-bold font-headline truncate">{profile.name}, {profile.age}</h3>
               {profile.isVerified && (
@@ -54,25 +55,29 @@ export function ProfileCard({ profile, tall = false }: ProfileCardProps) {
               )}
             </div>
             
-            <div className="space-y-1 text-xs opacity-90">
+            <div className="space-y-1.5 text-[11px] opacity-90">
               <div className="flex items-center gap-2">
-                <MapPin className="h-3 w-3 text-secondary" />
-                {profile.city} • {profile.sect}
+                <MapPin className="h-3 w-3 text-secondary shrink-0" />
+                <span className="truncate">{profile.city} • {profile.sect}</span>
               </div>
               <div className="flex items-center gap-2">
-                < GraduationCap className="h-3 w-3 text-secondary" />
-                {profile.education}
+                <Users className="h-3 w-3 text-secondary shrink-0" />
+                <span>{profile.maritalStatus}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Briefcase className="h-3 w-3 text-secondary" />
-                {profile.occupation}
+                <GraduationCap className="h-3 w-3 text-secondary shrink-0" />
+                <span className="truncate">{profile.education}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-3 w-3 text-secondary shrink-0" />
+                <span className="truncate">{profile.occupation}</span>
               </div>
             </div>
           </div>
           
-          <button className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white backdrop-blur-md transition-colors hover:bg-secondary">
+          <div className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white backdrop-blur-md transition-colors hover:bg-secondary">
             <Heart className="h-5 w-5" />
-          </button>
+          </div>
         </div>
       </Card>
     </Link>

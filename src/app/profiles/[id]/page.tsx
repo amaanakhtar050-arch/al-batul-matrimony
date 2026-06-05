@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -25,7 +26,8 @@ import {
   CheckCircle2,
   Clock,
   X,
-  Trash2
+  Trash2,
+  Users
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -211,10 +213,14 @@ export default function ProfileDetailPage() {
               <Badge variant="outline" className="h-8 border-primary/20 bg-primary/5 px-4 text-sm text-primary">{profile.sect}</Badge>
             </div>
 
-            <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-3">
+            <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
               <div className="space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Location</span>
                 <p className="font-medium text-sm">{profile.city}, {profile.country}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Marital Status</span>
+                <p className="font-medium text-sm">{profile.maritalStatus || "Single"}</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Education</span>

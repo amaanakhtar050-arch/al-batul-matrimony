@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -277,6 +278,7 @@ export default function DiscoverPage() {
                   city: profile.city,
                   education: profile.education,
                   occupation: profile.occupation,
+                  maritalStatus: profile.maritalStatus || "Single",
                   imageUrl: profile.photoUrl || `https://picsum.photos/seed/${profile.id}/600/800`,
                   imageHint: "Muslim professional",
                   isVerified: profile.status === 'approved'
