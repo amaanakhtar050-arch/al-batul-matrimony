@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
@@ -15,7 +15,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -59,7 +59,10 @@ export default function SetupProfilePage() {
   const [saving, setSaving] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const idInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -118,10 +121,22 @@ export default function SetupProfilePage() {
     checkExistingProfile();
   }, [user, authLoading, db, router]);
 
-  const handleAddPhoto = () => {
-    if (newPhotoUrl && !formData.photos.includes(newPhotoUrl)) {
-      setFormData({ ...formData, photos: [...formData.photos, newPhotoUrl] });
-      setNewPhotoUrl('');
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'photoUrl' | 'idPhotoUrl' | 'selfiePhotoUrl') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64 storage
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please upload an image smaller than 2MB.",
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, [field]: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -133,7 +148,6 @@ export default function SetupProfilePage() {
     const userDocRef = doc(db, 'users', user.uid);
     const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
     
-    // RE-VERIFICATION POLICY: Any profile change resets status to 'pending'
     const profileData = {
       fullName: formData.fullName,
       dob: formData.dob,
@@ -153,12 +167,12 @@ export default function SetupProfilePage() {
       state: formData.state,
       country: formData.country,
       languagesSpoken: languagesArray,
-      photoUrl: formData.photoUrl || `https://picsum.photos/seed/${user.uid}/600/800`,
+      photoUrl: formData.photoUrl,
       photos: formData.photos,
       idPhotoUrl: formData.idPhotoUrl,
       selfiePhotoUrl: formData.selfiePhotoUrl,
       about: formData.about,
-      status: 'pending', // Force pending state for admin review
+      status: 'pending',
       isProfileComplete: true,
       lastActiveAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -224,31 +238,47 @@ export default function SetupProfilePage() {
             <div className="grid gap-8 lg:grid-cols-3">
               <aside className="lg:col-span-1 space-y-6">
                 <Card className="border-none shadow-md overflow-hidden">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-bold text-primary">Profile Photos</CardTitle>
-                    <CardDescription>Visual identity for other members.</CardDescription>
+                  <CardHeader className="pb-4 text-center">
+                    <CardTitle className="text-lg font-bold text-primary">Profile Photo</CardTitle>
+                    <CardDescription>Upload a clear photo of yourself.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="group relative mx-auto h-48 w-48 overflow-hidden rounded-3xl bg-muted shadow-inner">
+                  <CardContent className="space-y-6 flex flex-col items-center">
+                    <div className="group relative h-48 w-48 overflow-hidden rounded-3xl bg-muted shadow-inner border-2 border-primary/10">
                       {formData.photoUrl ? (
-                        <Image src={formData.photoUrl} alt="Profile Preview" fill className="object-cover" />
+                        <>
+                          <Image src={formData.photoUrl} alt="Profile Preview" fill className="object-cover" />
+                          <button 
+                            type="button"
+                            onClick={() => setFormData({...formData, photoUrl: ''})}
+                            className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
                       ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground/40">
-                          <Camera className="h-14 w-14 mb-2" />
-                          <span className="text-xs text-center px-4">Primary Photo</span>
+                        <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground/30">
+                          <User className="h-16 w-16 mb-2" />
+                          <span className="text-[10px] text-center font-bold uppercase tracking-wider">No Photo Uploaded</span>
                         </div>
                       )}
                     </div>
                     
-                    <div className="space-y-3">
-                      <Label htmlFor="photoUrl" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Primary Photo URL</Label>
-                      <Input 
-                        id="photoUrl" 
-                        placeholder="Paste image link..." 
-                        value={formData.photoUrl}
-                        onChange={(e) => setFormData({...formData, photoUrl: e.target.value})}
-                      />
-                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full h-11 font-bold gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4" />
+                      {formData.photoUrl ? "Change Photo" : "Upload Photo"}
+                    </Button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => handleFileChange(e, 'photoUrl')} 
+                    />
                   </CardContent>
                 </Card>
 
@@ -257,26 +287,37 @@ export default function SetupProfilePage() {
                     <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
                       <ShieldCheck className="h-5 w-5" /> Identity Verification
                     </CardTitle>
-                    <CardDescription className="text-xs">Documents required for profile approval.</CardDescription>
+                    <CardDescription className="text-xs">Required for profile approval.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold">Government ID URL</Label>
-                      <Input 
-                        placeholder="Link to ID scan/photo" 
-                        value={formData.idPhotoUrl}
-                        onChange={(e) => setFormData({...formData, idPhotoUrl: e.target.value})}
-                        className="bg-white"
-                      />
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Government ID</Label>
+                      <div className="relative aspect-video rounded-xl bg-white/50 border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/80 transition-colors" onClick={() => idInputRef.current?.click()}>
+                        {formData.idPhotoUrl ? (
+                          <Image src={formData.idPhotoUrl} alt="ID Scan" fill className="object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="h-6 w-6 mx-auto mb-1 text-primary/40" />
+                            <p className="text-[10px] font-bold text-primary/40 uppercase">Upload ID Scan</p>
+                          </div>
+                        )}
+                      </div>
+                      <input type="file" ref={idInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'idPhotoUrl')} />
                     </div>
+
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold">Verification Selfie URL</Label>
-                      <Input 
-                        placeholder="Link to verification selfie" 
-                        value={formData.selfiePhotoUrl}
-                        onChange={(e) => setFormData({...formData, selfiePhotoUrl: e.target.value})}
-                        className="bg-white"
-                      />
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Verification Selfie</Label>
+                      <div className="relative aspect-square rounded-xl bg-white/50 border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/80 transition-colors" onClick={() => selfieInputRef.current?.click()}>
+                        {formData.selfiePhotoUrl ? (
+                          <Image src={formData.selfiePhotoUrl} alt="Selfie" fill className="object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <Camera className="h-6 w-6 mx-auto mb-1 text-primary/40" />
+                            <p className="text-[10px] font-bold text-primary/40 uppercase">Upload Selfie</p>
+                          </div>
+                        )}
+                      </div>
+                      <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'selfiePhotoUrl')} />
                     </div>
                   </CardContent>
                 </Card>

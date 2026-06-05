@@ -112,7 +112,6 @@ export default function ProfileDetailPage() {
   const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended;
   const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
   
-  // Access Gating based on new plan rules
   const canChat = ["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched;
   const hasContactAccess = ["Gold", "Premium"].includes(currentPlan);
 
@@ -124,8 +123,14 @@ export default function ProfileDetailPage() {
         <div className="grid gap-12 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <div className="sticky top-24 space-y-6">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted">
-                <Image src={profile.photoUrl || `https://picsum.photos/seed/${profile.id}/600/800`} alt="Profile" fill className="object-cover" />
+              <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted border border-border">
+                {profile.photoUrl ? (
+                  <Image src={profile.photoUrl} alt="Profile" fill className="object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/20">
+                    <User className="h-32 w-32" />
+                  </div>
+                )}
                 {profile.status === 'approved' && (
                    <div className="absolute left-6 top-6 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-primary shadow-lg backdrop-blur-md">
                       <ShieldCheck className="h-5 w-5" />

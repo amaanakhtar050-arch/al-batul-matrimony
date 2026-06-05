@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck } from "lucide-react";
+import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
 
 interface ProfileCardProps {
@@ -27,14 +27,20 @@ export function ProfileCard({ profile, tall = false }: ProfileCardProps) {
   return (
     <Link href={`/profiles/${profile.id}`}>
       <Card className={`group relative overflow-hidden transition-all hover:shadow-xl ${tall ? 'masonry-item-tall' : 'masonry-item'} border-none bg-transparent h-[400px]`}>
-        <div className="relative h-full w-full">
-          <Image
-            src={profile.imageUrl}
-            alt={profile.name}
-            fill
-            className="object-cover transition-transform group-hover:scale-105"
-            data-ai-hint={profile.imageHint}
-          />
+        <div className="relative h-full w-full bg-muted">
+          {profile.imageUrl ? (
+            <Image
+              src={profile.imageUrl}
+              alt={profile.name}
+              fill
+              className="object-cover transition-transform group-hover:scale-105"
+              data-ai-hint={profile.imageHint}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground/20">
+              <User className="h-24 w-24" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           
           <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
@@ -54,7 +60,7 @@ export function ProfileCard({ profile, tall = false }: ProfileCardProps) {
                 {profile.city} • {profile.sect}
               </div>
               <div className="flex items-center gap-2">
-                <GraduationCap className="h-3 w-3 text-secondary" />
+                < GraduationCap className="h-3 w-3 text-secondary" />
                 {profile.education}
               </div>
               <div className="flex items-center gap-2">

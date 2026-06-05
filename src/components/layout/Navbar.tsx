@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2 } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc } from "fi
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import Image from "next/image";
 
 export function Navbar() {
   const { user, loading } = useUser();
@@ -179,9 +180,12 @@ export function Navbar() {
               </Popover>
 
               <Link href="/dashboard">
-                <Button variant={pathname === '/dashboard' ? 'default' : 'outline'} className="hidden gap-2 md:flex">
-                  <User className="h-4 w-4" />
-                  My Dashboard
+                <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'} className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full p-0 border border-primary/20 bg-muted">
+                   {profile?.photoUrl ? (
+                     <Image src={profile.photoUrl} alt="Avatar" width={40} height={40} className="h-full w-full object-cover" />
+                   ) : (
+                     <User className="h-5 w-5 text-muted-foreground" />
+                   )}
                 </Button>
               </Link>
               <Button variant="ghost" size="icon" onClick={handleLogout} title="Log Out">
