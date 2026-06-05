@@ -257,12 +257,18 @@ export default function AdminDashboard() {
                           <Dialog>
                             <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8">ID Scan</Button></DialogTrigger>
                             <DialogContent className="max-w-3xl">
+                                <DialogHeader>
+                                  <DialogTitle>ID Document Preview - {user.fullName}</DialogTitle>
+                                </DialogHeader>
                                 <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" width={800} height={600} className="rounded-lg object-contain" />
                             </DialogContent>
                           </Dialog>
                           <Dialog>
                             <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8">Selfie</Button></DialogTrigger>
                             <DialogContent className="max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Verification Selfie Preview - {user.fullName}</DialogTitle>
+                                </DialogHeader>
                                 <Image src={user.selfiePhotoUrl || "https://picsum.photos/seed/selfie/600/600"} alt="Selfie" width={600} height={600} className="rounded-lg object-contain" />
                             </DialogContent>
                           </Dialog>

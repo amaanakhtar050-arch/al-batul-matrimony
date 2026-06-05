@@ -1,10 +1,11 @@
+
 'use client';
 
 import Link from "next/link";
 import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -136,6 +137,9 @@ export function Navbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation Menu</SheetTitle>
+              </SheetHeader>
               <div className="flex flex-col gap-6 py-8">
                 {navLinks.map((link) => {
                   const isDisabled = link.restricted && (!hasProfile || !isApproved);
