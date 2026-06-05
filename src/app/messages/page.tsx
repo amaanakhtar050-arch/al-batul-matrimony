@@ -14,6 +14,7 @@ import {
   query, 
   where, 
   or, 
+  and,
   orderBy, 
   addDoc, 
   serverTimestamp, 
@@ -45,10 +46,12 @@ export default function MessagesPage() {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
-      where("status", "==", "accepted"),
-      or(
-        where("fromUserId", "==", user.uid),
-        where("toUserId", "==", user.uid)
+      and(
+        where("status", "==", "accepted"),
+        or(
+          where("fromUserId", "==", user.uid),
+          where("toUserId", "==", user.uid)
+        )
       )
     );
   }, [db, user]);
@@ -272,7 +275,7 @@ export default function MessagesPage() {
                   <MessageSquare className="h-12 w-12 text-primary opacity-30" />
                 </div>
                 <h3 className="text-3xl font-headline font-bold mb-4">Your Private Sanctuary</h3>
-                <p className="text-muted-foreground max-w-sm mb-10 leading-relaxed">
+                <p className="text-muted-foreground max-sm mb-10 leading-relaxed">
                   Select a match from the sidebar to engage in a meaningful and respectful conversation. 
                   Communication is built on trust and mutual values.
                 </p>
