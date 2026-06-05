@@ -65,15 +65,13 @@ export function Navbar() {
   const { data: notifications } = useCollection(notificationsQuery);
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // Real-time Messages (Interests/Matches) - Split queries for reliability
+  // Real-time Matches: Use dual-query strategy for reliability
   const sentMatchesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
       where("fromUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      orderBy("updatedAt", "desc"),
-      limit(5)
+      where("status", "==", "accepted")
     );
   }, [db, user]);
 
@@ -82,9 +80,7 @@ export function Navbar() {
     return query(
       collection(db, "interests"),
       where("toUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      orderBy("updatedAt", "desc"),
-      limit(5)
+      where("status", "==", "accepted")
     );
   }, [db, user]);
 
@@ -95,14 +91,14 @@ export function Navbar() {
     const combined = [...sentMatches, ...receivedMatches];
     const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
     return unique.sort((a: any, b: any) => {
-      const timeA = a.updatedAt?.toMillis() || 0;
-      const timeB = b.updatedAt?.toMillis() || 0;
+      const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+      const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
       return timeB - timeA;
     });
   }, [sentMatches, receivedMatches]);
 
   const hasUnreadMessages = useMemo(() => {
-    return recentMatches.some(m => !m.lastMessageRead && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
+    return recentMatches.some(m => m.lastMessageRead === false && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
   }, [recentMatches, user]);
 
   const isAdmin = profile?.role === 'admin';
@@ -230,7 +226,7 @@ export function Navbar() {
                               {n.message || n.description || "Notification details..."}
                             </p>
                             <span className="text-[9px] text-muted-foreground opacity-70">
-                              {n.createdAt?.toDate() ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                              {n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                             </span>
                           </div>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => {
@@ -256,17 +252,17 @@ export function Navbar() {
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-9 w-9">
                     <MessageSquare className="h-5 w-5" />
-                    {hasUnreadMessages && (
+                    {(recentMatches.length > 0 || hasUnreadMessages) && (
                       <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground shadow-sm">
-                        •
+                        {recentMatches.length}
                       </span>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0 shadow-2xl border-primary/10" align="end">
                   <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
-                    <h3 className="font-bold text-sm">Messages</h3>
-                    <Link href="/messages" className="text-[10px] font-bold text-primary uppercase hover:underline">Open Chat</Link>
+                    <h3 className="font-bold text-sm">Matches & Chat</h3>
+                    <Link href="/messages" className="text-[10px] font-bold text-primary uppercase hover:underline">Open Messages</Link>
                   </div>
                   <div className="max-h-[400px] overflow-auto">
                     {recentMatches.length > 0 ? (
@@ -278,13 +274,15 @@ export function Navbar() {
                           <div 
                             key={match.id} 
                             className="p-4 border-b flex items-center gap-3 hover:bg-muted/20 cursor-pointer transition-colors"
-                            onClick={() => router.push('/messages')}
+                            onClick={() => {
+                              router.push('/messages');
+                            }}
                           >
                             <UserAvatar userId={partnerId} className="h-10 w-10 shrink-0 border border-primary/10" />
                             <div className="flex-1 overflow-hidden">
                               <div className="flex justify-between items-center mb-0.5">
                                 <p className="font-bold text-xs truncate">{partnerName}</p>
-                                {match.updatedAt && (
+                                {match.updatedAt?.toDate && (
                                   <span className="text-[9px] text-muted-foreground">
                                     {formatDistanceToNow(match.updatedAt.toDate(), { addSuffix: false })}
                                   </span>
@@ -300,7 +298,7 @@ export function Navbar() {
                     ) : (
                       <div className="p-12 text-center flex flex-col items-center gap-2">
                         <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
-                        <p className="text-muted-foreground text-[11px] italic">No active conversations.</p>
+                        <p className="text-muted-foreground text-[11px] italic">No active matches found.</p>
                       </div>
                     )}
                   </div>

@@ -82,14 +82,13 @@ export default function MessagesPage() {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
-  // Use two separate queries to ensure reliable results without complex composite indexes
+  // Robust Match Retrieval: Use two separate queries to avoid complex index requirements
   const sentMatchesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
       where("fromUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      orderBy("updatedAt", "desc")
+      where("status", "==", "accepted")
     );
   }, [db, user]);
 
@@ -98,23 +97,32 @@ export default function MessagesPage() {
     return query(
       collection(db, "interests"),
       where("toUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      orderBy("updatedAt", "desc")
+      where("status", "==", "accepted")
     );
   }, [db, user]);
 
   const { data: sentMatches, loading: loadingSent } = useCollection(sentMatchesQuery);
   const { data: receivedMatches, loading: loadingReceived } = useCollection(receivedMatchesQuery);
 
+  // Combine and Sort matches in memory
   const matches = useMemo(() => {
     const combined = [...sentMatches, ...receivedMatches];
-    // Remove potential duplicates by interest ID and sort by updatedAt
+    // Remove duplicates by ID and sort by updatedAt
     const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-    return unique.sort((a: any, b: any) => {
-      const timeA = a.updatedAt?.toMillis() || 0;
-      const timeB = b.updatedAt?.toMillis() || 0;
+    const sorted = unique.sort((a: any, b: any) => {
+      const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.updatedAt instanceof Date ? a.updatedAt.getTime() : 0);
+      const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.updatedAt instanceof Date ? b.updatedAt.getTime() : 0);
       return timeB - timeA;
     });
+    
+    console.log('Al Batul Matches Audit:', {
+      sentCount: sentMatches.length,
+      receivedCount: receivedMatches.length,
+      totalUnique: sorted.length,
+      matches: sorted
+    });
+    
+    return sorted;
   }, [sentMatches, receivedMatches]);
 
   const messagesQuery = useMemoFirebase(() => {
@@ -149,8 +157,9 @@ export default function MessagesPage() {
     e.preventDefault();
     if (!db || !user || !activeInterest || !messageText.trim() || !profile) return;
 
+    const currentText = messageText.trim();
     const messageData = {
-      text: messageText.trim(),
+      text: currentText,
       senderId: user.uid,
       timestamp: serverTimestamp(),
       read: false
@@ -159,9 +168,9 @@ export default function MessagesPage() {
     const msgsRef = collection(db, "interests", activeInterest.id, "messages");
     const interestRef = doc(db, "interests", activeInterest.id);
 
+    // Optimized: Do not await, let optimistic UI handle it
     addDoc(msgsRef, messageData)
       .then(() => {
-        const currentText = messageText.trim();
         setMessageText("");
         updateDoc(interestRef, {
           lastMessage: currentText,
@@ -304,7 +313,7 @@ export default function MessagesPage() {
                               <p className="font-bold truncate text-sm">{partnerName}</p>
                               {match.updatedAt && (
                                 <span className={`text-[9px] ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                  {format(match.updatedAt.toDate(), 'HH:mm')}
+                                  {match.updatedAt?.toDate ? format(match.updatedAt.toDate(), 'HH:mm') : 'recently'}
                                 </span>
                               )}
                             </div>
