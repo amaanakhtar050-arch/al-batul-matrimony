@@ -85,6 +85,7 @@ export default function DashboardPage() {
 
   const [aiSuggestions, setAiSuggestions] = useState<IntelligentMatchmakerSuggestionsOutput | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Calculate Profile Completion Percentage
@@ -121,6 +122,7 @@ export default function DashboardPage() {
     async function fetchSuggestions() {
       if (!profile || !db || profile.status !== 'approved') return;
       setLoadingSuggestions(true);
+      setAiError(null);
       try {
         const q = query(collection(db, 'users'), where('status', '==', 'approved'), limit(10));
         const snapshot = await getDocs(q);
@@ -152,6 +154,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("AI Error:", err);
+        setAiError("AI suggestions are temporarily unavailable. Please try again later.");
       } finally {
         setLoadingSuggestions(false);
       }
@@ -313,6 +316,11 @@ export default function DashboardPage() {
                   <div className="space-y-4">
                     {loadingSuggestions ? (
                       <div className="flex h-40 items-center justify-center animate-pulse" />
+                    ) : aiError ? (
+                      <div className="text-center py-10 opacity-60">
+                         <AlertCircle className="mx-auto h-8 w-8 mb-2 text-primary-foreground/50" />
+                         <p className="text-xs">{aiError}</p>
+                      </div>
                     ) : aiSuggestions?.suggestions.length ? (
                       aiSuggestions.suggestions.map((suggestion) => (
                         <div key={suggestion.profileId} className="group flex flex-col gap-5 rounded-2xl bg-white/10 p-5 backdrop-blur-md md:flex-row md:items-center hover:bg-white/20 transition-all">
