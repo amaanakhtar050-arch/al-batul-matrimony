@@ -27,7 +27,8 @@ import {
   Clock,
   X,
   Trash2,
-  Users
+  Users,
+  Edit2
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -54,7 +55,8 @@ export default function ProfileDetailPage() {
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
-  const interestQuery = useMemoFirebase(() => {
+  // Check if I sent an interest
+  const sentInterestQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
     return query(
       collection(db, "interests"),
@@ -64,6 +66,7 @@ export default function ProfileDetailPage() {
     );
   }, [db, currentUser, id]);
 
+  // Check if I received an interest
   const receivedInterestQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
     return query(
@@ -74,7 +77,7 @@ export default function ProfileDetailPage() {
     );
   }, [db, currentUser, id]);
 
-  const { data: sentInterests } = useCollection(interestQuery);
+  const { data: sentInterests } = useCollection(sentInterestQuery);
   const { data: receivedInterests } = useCollection(receivedInterestQuery);
 
   const existingSentInterest = sentInterests?.[0];
@@ -83,26 +86,23 @@ export default function ProfileDetailPage() {
   const handleSendInterest = async () => {
     if (!currentUser || !db || !profile) return;
     
+    if (currentUser.uid === profile.id) {
+      toast({ title: "Not Possible", description: "You cannot send an interest to yourself.", variant: "destructive" });
+      return;
+    }
+
     if (viewerProfile?.status !== 'approved') {
-      toast({ title: "Verification Required", description: "Profile must be approved to send interests.", variant: "destructive" });
+      toast({ title: "Verification Required", description: "Your profile must be approved to send interests.", variant: "destructive" });
+      return;
+    }
+
+    // Double check state to prevent duplicates
+    if (existingSentInterest || existingReceivedInterest) {
+      toast({ title: "Interaction Exists", description: "You already have an active interaction with this member." });
       return;
     }
 
     setIsSending(true);
-
-    // Double check for duplicates even though UI should prevent it
-    const q = query(
-      collection(db, "interests"),
-      where("fromUserId", "==", currentUser.uid),
-      where("toUserId", "==", profile.id),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      toast({ title: "Already Sent", description: "You have already sent an interest to this profile." });
-      setIsSending(false);
-      return;
-    }
 
     const interestData = {
       fromUserId: currentUser.uid,
@@ -116,23 +116,47 @@ export default function ProfileDetailPage() {
 
     const interestRef = collection(db, "interests");
     addDoc(interestRef, interestData)
-      .then(() => toast({ title: "Interest Sent", description: "Wait for their response!" }))
-      .catch(async (e) => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: interestRef.path, operation: 'create' })))
+      .then(() => {
+        toast({ title: "Interest Sent", description: "We've notified the member of your interest." });
+      })
+      .catch(async (e) => {
+        errorEmitter.emit("permission-error", new FirestorePermissionError({ 
+          path: interestRef.path, 
+          operation: 'create',
+          requestResourceData: interestData
+        }));
+      })
       .finally(() => setIsSending(false));
   };
 
   const handleWithdrawInterest = () => {
     if (!db || !existingSentInterest) return;
+    if (!confirm("Withdraw this interest request?")) return;
+
     const interestRef = doc(db, "interests", existingSentInterest.id);
     deleteDoc(interestRef).then(() => {
       toast({ title: "Interest Withdrawn" });
-    }).catch(async (e) => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: interestRef.path, operation: 'delete' })));
+    }).catch(async (e) => {
+      errorEmitter.emit("permission-error", new FirestorePermissionError({ 
+        path: interestRef.path, 
+        operation: 'delete' 
+      }));
+    });
   };
 
   if (profileLoading || viewerLoading) return <div className="flex h-screen items-center justify-center animate-pulse" />;
 
-  if (!profile) return <div className="p-20 text-center">Profile not found.</div>;
+  if (!profile) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold mb-4">Profile Not Found</h1>
+        <Link href="/discover"><Button>Return to Discover</Button></Link>
+      </div>
+    </div>
+  );
 
+  const isSelf = currentUser?.uid === profile.id;
   const currentPlan = viewerProfile?.membership?.plan || "Free";
   const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended;
   const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
@@ -159,49 +183,77 @@ export default function ProfileDetailPage() {
                 {profile.status === 'approved' && (
                    <div className="absolute left-6 top-6 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-primary shadow-lg backdrop-blur-md">
                       <ShieldCheck className="h-5 w-5" />
-                      <span className="text-sm font-bold">Verified</span>
+                      <span className="text-sm font-bold">Verified Member</span>
                    </div>
                 )}
               </div>
               
               <div className="flex flex-col gap-4">
-                <div className="flex gap-4">
-                  {existingSentInterest ? (
-                    <div className="flex flex-col flex-1 gap-2">
-                      <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-muted text-muted-foreground">
-                        {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : null}
-                        {existingSentInterest.status.toUpperCase()}
-                      </Button>
-                      {existingSentInterest.status === 'pending' && (
-                        <Button variant="ghost" className="text-destructive h-10 gap-2" onClick={handleWithdrawInterest}>
-                          <Trash2 className="h-4 w-4" /> Withdraw Request
-                        </Button>
-                      )}
-                    </div>
-                  ) : existingReceivedInterest ? (
-                    <Link href="/interests" className="flex-1">
-                      <Button className="h-14 w-full gap-2 text-lg font-bold">
-                        {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : existingReceivedInterest.status.toUpperCase()}
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Button 
-                      onClick={handleSendInterest} 
-                      disabled={isSending || !canInteract}
-                      className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary text-primary-foreground"
-                    >
-                      <Heart className="h-5 w-5" /> Send Interest
-                    </Button>
-                  )}
-                  
-                  <Link href={canChat ? "/messages" : "/membership"} className={!canChat ? "opacity-70" : ""}>
-                    <Button variant="outline" size="icon" className="h-14 w-14">
-                      {canChat ? <MessageSquare className="h-6 w-6" /> : <Lock className="h-6 w-6 text-muted-foreground" />}
+                {isSelf ? (
+                  <Link href="/setup-profile" className="flex-1">
+                    <Button className="h-14 w-full gap-2 text-lg font-bold">
+                      <Edit2 className="h-5 w-5" /> Edit My Profile
                     </Button>
                   </Link>
-                </div>
-                {!canChat && isMatched && (
-                    <p className="text-[10px] text-center text-muted-foreground">Upgrade to Silver+ to start chatting with your match.</p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                      {isMatched ? (
+                        <div className="flex flex-col flex-1 gap-2">
+                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-green-600 text-white border-none opacity-100">
+                            <CheckCircle2 className="h-5 w-5" /> Mutual Match
+                          </Button>
+                        </div>
+                      ) : existingSentInterest ? (
+                        <div className="flex flex-col flex-1 gap-2">
+                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-muted text-muted-foreground">
+                            {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : null}
+                            Interest {existingSentInterest.status.toUpperCase()}
+                          </Button>
+                          {existingSentInterest.status === 'pending' && (
+                            <Button variant="ghost" className="text-destructive h-10 gap-2" onClick={handleWithdrawInterest}>
+                              <Trash2 className="h-4 w-4" /> Withdraw Request
+                            </Button>
+                          )}
+                        </div>
+                      ) : existingReceivedInterest ? (
+                        <Link href="/interests" className="flex-1">
+                          <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white">
+                            {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : 'View Interaction'}
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button 
+                          onClick={handleSendInterest} 
+                          disabled={isSending || !canInteract}
+                          className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                        >
+                          <Heart className="h-5 w-5" /> Send Interest
+                        </Button>
+                      )}
+                      
+                      {(isMatched || canChat) && (
+                        <Link href={canChat ? "/messages" : "/membership"} className={!canChat ? "opacity-70" : ""}>
+                          <Button variant="outline" size="icon" className="h-14 w-14">
+                            {canChat ? <MessageSquare className="h-6 w-6" /> : <Lock className="h-6 w-6 text-muted-foreground" />}
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                    {isMatched && !canChat && (
+                        <div className="flex items-start gap-2 p-3 bg-orange-50 rounded-xl text-orange-800 text-[10px] leading-relaxed">
+                          <Crown className="h-3 w-3 shrink-0 mt-0.5" />
+                          <p>You've matched! To start the conversation, please upgrade to a <strong>Silver Plan</strong> or higher.</p>
+                        </div>
+                    )}
+                    {isMatched && canChat && (
+                      <Link href="/messages" className="w-full">
+                        <Button className="w-full h-11 gap-2 font-bold shadow-md" variant="secondary">
+                           <MessageSquare className="h-4 w-4" /> Start Conversation Now
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -234,12 +286,14 @@ export default function ProfileDetailPage() {
 
             <section className="mb-12">
               <h3 className="mb-4 text-2xl font-bold font-headline border-b pb-2">About Me</h3>
-              <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">{profile.about}</p>
+              <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                {profile.about || "This member has not written a bio yet."}
+              </p>
             </section>
 
             <section className="mb-12">
               <h3 className="mb-6 text-2xl font-bold font-headline border-b pb-2 flex items-center gap-2">
-                <Phone className="h-6 w-6 text-primary" /> Contact Access
+                <Phone className="h-6 w-6 text-primary" /> Contact Information
               </h3>
               {hasContactAccess ? (
                 <div className="grid gap-6 md:grid-cols-2">
@@ -258,7 +312,7 @@ export default function ProfileDetailPage() {
                 <div className="rounded-3xl bg-muted/30 border-2 border-dashed border-border p-10 text-center">
                   <Lock className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
                   <p className="text-lg font-bold mb-2">Details Locked</p>
-                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold+ to unlock contact information.</p>
+                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold+ to unlock direct contact information.</p>
                   <Link href="/membership"><Button className="gap-2 px-8 h-11 font-bold"><Crown className="h-4 w-4" /> Upgrade Now</Button></Link>
                 </div>
               )}
