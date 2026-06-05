@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -17,15 +18,14 @@ import {
   ChevronLeft,
   Search,
   AlertCircle,
-  User
+  User,
+  Loader2
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { 
   collection, 
   query, 
   where, 
-  or, 
-  and,
   orderBy, 
   addDoc, 
   serverTimestamp, 
@@ -33,7 +33,7 @@ import {
   updateDoc 
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { format, isToday, isYesterday } from "date-fns";
@@ -82,22 +82,40 @@ export default function MessagesPage() {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
-  const matchesQuery = useMemoFirebase(() => {
+  // Use two separate queries to ensure reliable results without complex composite indexes
+  const sentMatchesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
-      and(
-        where("status", "==", "accepted"),
-        or(
-          where("fromUserId", "==", user.uid),
-          where("toUserId", "==", user.uid)
-        )
-      ),
+      where("fromUserId", "==", user.uid),
+      where("status", "==", "accepted"),
       orderBy("updatedAt", "desc")
     );
   }, [db, user]);
 
-  const { data: matches, loading: loadingMatches } = useCollection(matchesQuery);
+  const receivedMatchesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "interests"),
+      where("toUserId", "==", user.uid),
+      where("status", "==", "accepted"),
+      orderBy("updatedAt", "desc")
+    );
+  }, [db, user]);
+
+  const { data: sentMatches, loading: loadingSent } = useCollection(sentMatchesQuery);
+  const { data: receivedMatches, loading: loadingReceived } = useCollection(receivedMatchesQuery);
+
+  const matches = useMemo(() => {
+    const combined = [...sentMatches, ...receivedMatches];
+    // Remove potential duplicates by interest ID and sort by updatedAt
+    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+    return unique.sort((a: any, b: any) => {
+      const timeA = a.updatedAt?.toMillis() || 0;
+      const timeB = b.updatedAt?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  }, [sentMatches, receivedMatches]);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!db || !activeInterest) return null;
@@ -223,10 +241,10 @@ export default function MessagesPage() {
     });
   };
 
-  if (authLoading || loadingMatches) {
+  if (authLoading || loadingSent || loadingReceived) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }

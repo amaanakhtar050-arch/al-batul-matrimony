@@ -1,15 +1,16 @@
+
 'use client';
 
 import Link from "next/link";
 import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
-import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc, where, or, and } from "firebase/firestore";
+import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc, where } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -64,24 +65,45 @@ export function Navbar() {
   const { data: notifications } = useCollection(notificationsQuery);
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // Real-time Messages (Interests/Matches)
-  const matchesQuery = useMemoFirebase(() => {
+  // Real-time Messages (Interests/Matches) - Split queries for reliability
+  const sentMatchesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
-      and(
-        where("status", "==", "accepted"),
-        or(
-          where("fromUserId", "==", user.uid),
-          where("toUserId", "==", user.uid)
-        )
-      ),
+      where("fromUserId", "==", user.uid),
+      where("status", "==", "accepted"),
       orderBy("updatedAt", "desc"),
-      limit(10)
+      limit(5)
     );
   }, [db, user]);
 
-  const { data: recentMatches } = useCollection(matchesQuery);
+  const receivedMatchesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "interests"),
+      where("toUserId", "==", user.uid),
+      where("status", "==", "accepted"),
+      orderBy("updatedAt", "desc"),
+      limit(5)
+    );
+  }, [db, user]);
+
+  const { data: sentMatches } = useCollection(sentMatchesQuery);
+  const { data: receivedMatches } = useCollection(receivedMatchesQuery);
+
+  const recentMatches = useMemo(() => {
+    const combined = [...sentMatches, ...receivedMatches];
+    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+    return unique.sort((a: any, b: any) => {
+      const timeA = a.updatedAt?.toMillis() || 0;
+      const timeB = b.updatedAt?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  }, [sentMatches, receivedMatches]);
+
+  const hasUnreadMessages = useMemo(() => {
+    return recentMatches.some(m => !m.lastMessageRead && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
+  }, [recentMatches, user]);
 
   const isAdmin = profile?.role === 'admin';
   const hasProfile = !!profile && profile.isProfileComplete;
@@ -133,7 +155,7 @@ export function Navbar() {
         {/* Desktop Menu */}
         <div className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => {
-            const isDisabled = link.restricted && (!hasProfile || !isApproved);
+            const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
             const active = pathname === link.href;
             
             return (
@@ -172,8 +194,6 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
-              {/* Order: Notifications | Messages | Profile | Logout */}
-              
               {/* Notifications Bell */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -231,13 +251,12 @@ export function Navbar() {
                 </PopoverContent>
               </Popover>
 
-              {/* Messages / Chat Hub */}
+              {/* Messages Dropdown */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-9 w-9">
                     <MessageSquare className="h-5 w-5" />
-                    {/* Simplified unread badge for messages if there are active matches */}
-                    {recentMatches.length > 0 && recentMatches.some(m => !m.lastMessageRead && m.lastMessageSenderId !== user.uid) && (
+                    {hasUnreadMessages && (
                       <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground shadow-sm">
                         •
                       </span>
@@ -328,7 +347,7 @@ export function Navbar() {
               </SheetHeader>
               <div className="flex flex-col gap-6 py-8">
                 {navLinks.map((link) => {
-                  const isDisabled = link.restricted && (!hasProfile || !isApproved);
+                  const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
                   return (
                     <Link 
                       key={link.href}
