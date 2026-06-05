@@ -48,7 +48,8 @@ export default function NotificationsPage() {
     switch (type) {
       case 'interest_received':
       case 'interest_accepted':
-        return <Heart className="h-4 w-4 text-red-500" />;
+      case 'match_created':
+        return <Heart className="h-4 w-4 text-primary" />;
       case 'interest_rejected':
         return <Heart className="h-4 w-4 text-muted-foreground" />;
       case 'message':
@@ -59,7 +60,7 @@ export default function NotificationsPage() {
       case 'membership_upgraded':
         return <CreditCard className="h-4 w-4 text-primary" />;
       case 'profile_viewed':
-        return <User className="h-4 w-4 text-blue-500" />;
+        return <Eye className="h-4 w-4 text-blue-500" />;
       default:
         return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
@@ -108,7 +109,7 @@ export default function NotificationsPage() {
                         {notification.title || "Notification"}
                       </p>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        {notification.description || notification.message || "No additional details provided."}
+                        {notification.description || "Notification details unavailable."}
                       </p>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-wider pt-1">
                         <Clock className="h-3 w-3" />

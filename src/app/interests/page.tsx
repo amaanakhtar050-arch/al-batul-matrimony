@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -45,6 +44,13 @@ export default function InterestsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const userProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+
+  const { data: profile } = useDoc(userProfileRef);
+
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
@@ -70,8 +76,8 @@ export default function InterestsPage() {
   const { data: receivedInterests, loading: loadingReceived } = useCollection(receivedQuery);
   const { data: sentInterests, loading: loadingSent } = useCollection(sentQuery);
 
-  const handleUpdateStatus = (interestId: string, status: 'accepted' | 'declined', partnerId: string) => {
-    if (!db || !user) return;
+  const handleUpdateStatus = (interestId: string, status: 'accepted' | 'declined', partnerId: string, partnerName: string) => {
+    if (!db || !user || !profile) return;
     const interestRef = doc(db, "interests", interestId);
     updateDoc(interestRef, {
       status,
@@ -88,13 +94,27 @@ export default function InterestsPage() {
         type: status === 'accepted' ? 'interest_accepted' : 'interest_rejected',
         title: status === 'accepted' ? 'Interest Accepted' : 'Interest Declined',
         description: status === 'accepted' 
-          ? `${user.displayName || "A member"} accepted your interest request! You can now start chatting.` 
-          : `${user.displayName || "A member"} declined your interest request.`,
+          ? `${profile.fullName || "A member"} accepted your interest request! You can now start chatting.` 
+          : `${profile.fullName || "A member"} declined your interest request.`,
         senderId: user.uid,
         receiverId: partnerId,
         read: false,
         createdAt: serverTimestamp()
       });
+      
+      // If accepted, also notify the current user about the "New Match"
+      if (status === 'accepted') {
+        const myNotifyRef = collection(db, 'users', user.uid, 'notifications');
+        addDoc(myNotifyRef, {
+          type: 'match_created',
+          title: '🎉 New Match Created',
+          description: `You and ${partnerName} are now matched! Start a conversation to get to know each other.`,
+          senderId: 'system',
+          receiverId: user.uid,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
     }).catch(async (e) => {
       errorEmitter.emit("permission-error", new FirestorePermissionError({
         path: interestRef.path,
@@ -185,10 +205,10 @@ export default function InterestsPage() {
                     <CardContent className="pt-0">
                       {interest.status === 'pending' && (
                         <div className="flex gap-2 mb-2">
-                          <Button size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => handleUpdateStatus(interest.id, 'accepted', interest.fromUserId)}>
+                          <Button size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => handleUpdateStatus(interest.id, 'accepted', interest.fromUserId, interest.fromUserName)}>
                             <Check className="h-4 w-4" /> Accept
                           </Button>
-                          <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-10 text-destructive hover:bg-destructive/5" onClick={() => handleUpdateStatus(interest.id, 'declined', interest.fromUserId)}>
+                          <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-10 text-destructive hover:bg-destructive/5" onClick={() => handleUpdateStatus(interest.id, 'declined', interest.fromUserId, interest.fromUserName)}>
                             <X className="h-4 w-4" /> Reject
                           </Button>
                         </div>

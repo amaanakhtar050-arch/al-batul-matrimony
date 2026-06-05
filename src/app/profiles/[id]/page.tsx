@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -95,8 +94,8 @@ export default function ProfileDetailPage() {
 
   // Logic for "Profile viewed" notification
   useEffect(() => {
-    if (db && currentUser && profile && id && currentUser.uid !== id) {
-      const viewerName = viewerProfile?.fullName || "A member";
+    if (db && currentUser && profile && id && currentUser.uid !== id && viewerProfile) {
+      const viewerName = viewerProfile.fullName || "A member";
       const viewedRef = collection(db, 'users', id as string, 'notifications');
       
       // Simple debounce to prevent notification spam on every refresh
@@ -107,7 +106,7 @@ export default function ProfileDetailPage() {
       if (!lastViewed || now - parseInt(lastViewed) > 3600000) { // Notify once an hour
         addDoc(viewedRef, {
           type: 'profile_viewed',
-          title: 'Profile Viewed',
+          title: '👀 Profile Viewed',
           description: `${viewerName} viewed your profile. Potential match!`,
           senderId: currentUser.uid,
           receiverId: id,
@@ -120,7 +119,7 @@ export default function ProfileDetailPage() {
   }, [db, currentUser, profile, id, viewerProfile]);
 
   const handleSendInterest = async () => {
-    if (!currentUser || !db || !profile) return;
+    if (!currentUser || !db || !profile || !viewerProfile) return;
     
     if (currentUser.uid === profile.id) {
       toast({ title: "Not Possible", description: "You cannot send an interest to yourself.", variant: "destructive" });
@@ -142,7 +141,7 @@ export default function ProfileDetailPage() {
 
     const interestData = {
       fromUserId: currentUser.uid,
-      fromUserName: viewerProfile?.fullName || currentUser.email,
+      fromUserName: viewerProfile.fullName || currentUser.email,
       toUserId: profile.id,
       toUserName: profile.fullName,
       status: "pending",
@@ -159,8 +158,8 @@ export default function ProfileDetailPage() {
         const notifyRef = collection(db, 'users', profile.id, 'notifications');
         addDoc(notifyRef, {
           type: 'interest_received',
-          title: 'New Interest Request',
-          description: `${viewerProfile?.fullName || "A member"} is interested in your profile. Click to respond!`,
+          title: '❤️ Interest Received',
+          description: `${viewerProfile.fullName || "A member"} sent you an interest request. Click to respond!`,
           senderId: currentUser.uid,
           receiverId: profile.id,
           read: false,

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -130,7 +129,7 @@ export default function MessagesPage() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !user || !activeInterest || !messageText.trim()) return;
+    if (!db || !user || !activeInterest || !messageText.trim() || !profile) return;
 
     const messageData = {
       text: messageText.trim(),
@@ -156,8 +155,8 @@ export default function MessagesPage() {
         const notifyRef = collection(db, 'users', partnerId, 'notifications');
         addDoc(notifyRef, {
           type: 'message',
-          title: 'New Message',
-          description: `You received a new message from ${profile?.fullName || "a member"}: "${currentText.slice(0, 30)}${currentText.length > 30 ? '...' : ''}"`,
+          title: '💬 New Message Received',
+          description: `You received a new message from ${profile.fullName || "a member"}: "${currentText.slice(0, 30)}${currentText.length > 30 ? '...' : ''}"`,
           senderId: user.uid,
           receiverId: partnerId,
           read: false,

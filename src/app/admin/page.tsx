@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -94,8 +93,8 @@ export default function AdminDashboard() {
       // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
-        title: 'Membership Activated',
-        description: `Your ${plan} membership payment has been approved. Enjoy your new benefits!`,
+        title: '💳 Membership Plan Activated',
+        description: `Your ${plan} membership payment has been approved. Enjoy your new benefits and increased visibility!`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -116,8 +115,8 @@ export default function AdminDashboard() {
       // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_rejected',
-        title: 'Payment Rejected',
-        description: `Your membership payment was rejected. Please check your transaction details and resubmit.`,
+        title: '❌ Payment Verification Failed',
+        description: `Your membership payment for the plan was rejected. Please verify your transaction details and resubmit proof of payment.`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -136,10 +135,10 @@ export default function AdminDashboard() {
       if (updates.status) {
         addDoc(collection(db, 'users', userId, 'notifications'), {
           type: updates.status === 'approved' ? 'verification_approved' : 'verification_rejected',
-          title: `Verification ${updates.status === 'approved' ? 'Successful' : 'Rejected'}`,
+          title: updates.status === 'approved' ? '✅ Profile Verification Successful' : '❌ Profile Verification Rejected',
           description: updates.status === 'approved' 
-            ? 'Congratulations! Your profile has been verified and is now visible to other members.' 
-            : 'Your profile verification was rejected. Please review your details and re-upload clear identity documents.',
+            ? 'Congratulations! Your profile has been verified by our team and is now visible to other members looking for matches.' 
+            : 'Your profile verification was rejected. Please ensure your identity documents are clear and your profile information is complete.',
           senderId: 'admin',
           receiverId: userId,
           read: false,
@@ -163,8 +162,8 @@ export default function AdminDashboard() {
       
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
-        title: 'Membership Updated',
-        description: `Your membership has been manually updated to ${plan} by an administrator.`,
+        title: '⭐ Membership Manually Updated',
+        description: `Your account has been upgraded to the ${plan} plan by an administrator. Enjoy the premium features!`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
