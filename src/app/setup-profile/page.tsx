@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -59,6 +59,8 @@ export default function SetupProfilePage() {
   const [saving, setSaving] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [existingProfileData, setExistingProfileData] = useState<any>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
@@ -79,6 +81,7 @@ export default function SetupProfilePage() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          setExistingProfileData(data);
           setIsEditing(true);
           setFormData(prev => ({
             ...prev,
@@ -123,21 +126,37 @@ export default function SetupProfilePage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'photoUrl' | 'idPhotoUrl' | 'selfiePhotoUrl') => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64 storage
-        toast({
-          variant: "destructive",
-          title: "File too large",
-          description: "Please upload an image smaller than 2MB.",
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, [field]: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+    if (!file || !db || !user) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB.",
+      });
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setFormData(prev => ({ ...prev, [field]: base64String }));
+
+      // If it's the profile photo, we can offer an instant update to the background
+      if (field === 'photoUrl' && isEditing) {
+        setIsUploadingPhoto(true);
+        const userRef = doc(db, 'users', user.uid);
+        updateDoc(userRef, {
+          photoUrl: base64String,
+          updatedAt: serverTimestamp()
+        })
+        .then(() => {
+          toast({ title: "Photo Updated", description: "Your profile picture has been updated." });
+        })
+        .finally(() => setIsUploadingPhoto(false));
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -148,6 +167,10 @@ export default function SetupProfilePage() {
     const userDocRef = doc(db, 'users', user.uid);
     const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
     
+    // Maintain approved status if editing and already approved
+    const currentStatus = existingProfileData?.status || 'pending';
+    const nextStatus = (currentStatus === 'approved') ? 'approved' : 'pending';
+
     const profileData = {
       fullName: formData.fullName,
       dob: formData.dob,
@@ -172,7 +195,7 @@ export default function SetupProfilePage() {
       idPhotoUrl: formData.idPhotoUrl,
       selfiePhotoUrl: formData.selfiePhotoUrl,
       about: formData.about,
-      status: 'pending',
+      status: nextStatus,
       isProfileComplete: true,
       lastActiveAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -197,8 +220,8 @@ export default function SetupProfilePage() {
     setDoc(userDocRef, finalData, { merge: true })
       .then(() => {
         toast({
-          title: "Profile Submitted",
-          description: "Your details and identity documents are now pending administrative review.",
+          title: isEditing ? "Profile Updated" : "Profile Submitted",
+          description: nextStatus === 'approved' ? "Your changes have been saved." : "Your details and identity documents are now pending administrative review.",
         });
         router.push('/dashboard');
       })
@@ -247,6 +270,11 @@ export default function SetupProfilePage() {
                       {formData.photoUrl ? (
                         <>
                           <Image src={formData.photoUrl} alt="Profile Preview" fill className="object-cover" />
+                          {isUploadingPhoto && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <Loader2 className="h-8 w-8 text-white animate-spin" />
+                            </div>
+                          )}
                           <button 
                             type="button"
                             onClick={() => setFormData({...formData, photoUrl: ''})}
@@ -268,6 +296,7 @@ export default function SetupProfilePage() {
                       variant="outline" 
                       className="w-full h-11 font-bold gap-2"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
                     >
                       <Upload className="h-4 w-4" />
                       {formData.photoUrl ? "Change Photo" : "Upload Photo"}
@@ -394,7 +423,7 @@ export default function SetupProfilePage() {
                   <CardFooter className="flex justify-end pt-4">
                     <Button type="submit" size="lg" className="gap-2 font-bold px-12 h-14 shadow-lg" disabled={saving}>
                       <Save className="h-4 w-4" />
-                      {saving ? 'Submitting...' : 'Submit Profile for Approval'}
+                      {saving ? 'Saving Changes...' : (isEditing ? 'Save Profile' : 'Submit Profile for Approval')}
                     </Button>
                   </CardFooter>
                 </Card>

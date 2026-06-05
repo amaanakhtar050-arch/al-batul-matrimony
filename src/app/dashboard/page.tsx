@@ -22,20 +22,27 @@ import {
   AlertCircle, 
   Zap,
   Search,
-  MessageSquare
+  MessageSquare,
+  Camera,
+  Loader2
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, limit, getDocs, doc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, limit, getDocs, doc, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const userProfileRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -53,6 +60,7 @@ export default function DashboardPage() {
 
   const [aiSuggestions, setAiSuggestions] = useState<IntelligentMatchmakerSuggestionsOutput | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -112,6 +120,44 @@ export default function DashboardPage() {
     if (profile && profile.status === 'approved') fetchSuggestions();
   }, [profile, db, user]);
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !db || !user) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB.",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const userRef = doc(db, 'users', user.uid);
+      
+      updateDoc(userRef, {
+        photoUrl: base64String,
+        updatedAt: serverTimestamp()
+      })
+      .then(() => {
+        toast({ title: "Photo Updated", description: "Your profile picture has been updated instantly." });
+      })
+      .catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: { photoUrl: base64String }
+        }));
+      })
+      .finally(() => setIsUploadingPhoto(false));
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (authLoading || profileLoading) return <div className="flex h-screen items-center justify-center animate-pulse" />;
 
   if (!user) return null;
@@ -154,10 +200,42 @@ export default function DashboardPage() {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8 lg:px-8">
-        <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <h1 className="text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
-            <p className="text-muted-foreground">Plan: <span className="font-bold text-primary uppercase">{planName}</span></p>
+        <div className="mb-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary/10 bg-muted relative shadow-lg">
+                {profile.photoUrl ? (
+                  <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+                    <UserPlus className="h-10 w-10" />
+                  </div>
+                )}
+                {isUploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 h-8 w-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+                disabled={isUploadingPhoto}
+              >
+                <Camera className="h-4 w-4" />
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handlePhotoUpload}
+              />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
+              <p className="text-muted-foreground">Plan: <span className="font-bold text-primary uppercase">{planName}</span></p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Badge variant="outline" className={`h-10 px-4 gap-2 ${profile.status === 'approved' ? 'bg-green-600 text-white border-none' : ''}`}>
