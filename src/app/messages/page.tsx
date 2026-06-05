@@ -144,9 +144,10 @@ export default function MessagesPage() {
 
     addDoc(msgsRef, messageData)
       .then(() => {
+        const currentText = messageText.trim();
         setMessageText("");
         updateDoc(interestRef, {
-          lastMessage: messageText.trim(),
+          lastMessage: currentText,
           updatedAt: serverTimestamp()
         });
 
@@ -154,7 +155,11 @@ export default function MessagesPage() {
         const partnerId = activeInterest.fromUserId === user.uid ? activeInterest.toUserId : activeInterest.fromUserId;
         const notifyRef = collection(db, 'users', partnerId, 'notifications');
         addDoc(notifyRef, {
-          text: `New message from ${profile?.fullName || "a member"}.`,
+          type: 'message',
+          title: 'New Message',
+          description: `You received a new message from ${profile?.fullName || "a member"}: "${currentText.slice(0, 30)}${currentText.length > 30 ? '...' : ''}"`,
+          senderId: user.uid,
+          receiverId: partnerId,
           read: false,
           createdAt: serverTimestamp()
         });

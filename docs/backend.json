@@ -111,11 +111,15 @@
       "description": "A notification message for a user.",
       "type": "object",
       "properties": {
-        "text": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
         "read": { "type": "boolean", "default": false },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["text", "read", "createdAt"]
+      "required": ["type", "title", "description", "read", "createdAt"]
     },
     "PlatformSettings": {
       "title": "Platform Settings",

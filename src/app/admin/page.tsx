@@ -93,7 +93,11 @@ export default function AdminDashboard() {
       
       // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
-        text: `Your ${plan} membership payment has been approved. Welcome to premium benefits!`,
+        type: 'membership_upgraded',
+        title: 'Membership Activated',
+        description: `Your ${plan} membership payment has been approved. Enjoy your new benefits!`,
+        senderId: 'admin',
+        receiverId: userId,
         read: false,
         createdAt: serverTimestamp()
       });
@@ -111,7 +115,11 @@ export default function AdminDashboard() {
 
       // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
-        text: `Your membership payment was rejected. Please check your transaction details and resubmit.`,
+        type: 'membership_rejected',
+        title: 'Payment Rejected',
+        description: `Your membership payment was rejected. Please check your transaction details and resubmit.`,
+        senderId: 'admin',
+        receiverId: userId,
         read: false,
         createdAt: serverTimestamp()
       });
@@ -127,7 +135,13 @@ export default function AdminDashboard() {
       // Notify User on Status Change
       if (updates.status) {
         addDoc(collection(db, 'users', userId, 'notifications'), {
-          text: `Your profile verification status has been updated to: ${updates.status.toUpperCase()}.`,
+          type: updates.status === 'approved' ? 'verification_approved' : 'verification_rejected',
+          title: `Verification ${updates.status === 'approved' ? 'Successful' : 'Rejected'}`,
+          description: updates.status === 'approved' 
+            ? 'Congratulations! Your profile has been verified and is now visible to other members.' 
+            : 'Your profile verification was rejected. Please review your details and re-upload clear identity documents.',
+          senderId: 'admin',
+          receiverId: userId,
           read: false,
           createdAt: serverTimestamp()
         });
@@ -148,7 +162,11 @@ export default function AdminDashboard() {
       toast({ title: "Membership Updated", description: `User is now on ${plan} plan.` });
       
       addDoc(collection(db, 'users', userId, 'notifications'), {
-        text: `Your membership has been manually updated to ${plan} by an administrator.`,
+        type: 'membership_upgraded',
+        title: 'Membership Updated',
+        description: `Your membership has been manually updated to ${plan} by an administrator.`,
+        senderId: 'admin',
+        receiverId: userId,
         read: false,
         createdAt: serverTimestamp()
       });

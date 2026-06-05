@@ -106,7 +106,11 @@ export default function ProfileDetailPage() {
       
       if (!lastViewed || now - parseInt(lastViewed) > 3600000) { // Notify once an hour
         addDoc(viewedRef, {
-          text: `${viewerName} viewed your profile.`,
+          type: 'profile_viewed',
+          title: 'Profile Viewed',
+          description: `${viewerName} viewed your profile. Potential match!`,
+          senderId: currentUser.uid,
+          receiverId: id,
           read: false,
           createdAt: serverTimestamp()
         });
@@ -154,7 +158,11 @@ export default function ProfileDetailPage() {
         // Notify recipient
         const notifyRef = collection(db, 'users', profile.id, 'notifications');
         addDoc(notifyRef, {
-          text: `${viewerProfile?.fullName || "A member"} sent you an interest request.`,
+          type: 'interest_received',
+          title: 'New Interest Request',
+          description: `${viewerProfile?.fullName || "A member"} is interested in your profile. Click to respond!`,
+          senderId: currentUser.uid,
+          receiverId: profile.id,
           read: false,
           createdAt: serverTimestamp()
         });

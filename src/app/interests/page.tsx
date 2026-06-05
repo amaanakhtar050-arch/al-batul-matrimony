@@ -85,7 +85,13 @@ export default function InterestsPage() {
       // Notify the requester
       const notifyRef = collection(db, 'users', partnerId, 'notifications');
       addDoc(notifyRef, {
-        text: `${user.displayName || "A member"} ${status} your interest request.`,
+        type: status === 'accepted' ? 'interest_accepted' : 'interest_rejected',
+        title: status === 'accepted' ? 'Interest Accepted' : 'Interest Declined',
+        description: status === 'accepted' 
+          ? `${user.displayName || "A member"} accepted your interest request! You can now start chatting.` 
+          : `${user.displayName || "A member"} declined your interest request.`,
+        senderId: user.uid,
+        receiverId: partnerId,
         read: false,
         createdAt: serverTimestamp()
       });

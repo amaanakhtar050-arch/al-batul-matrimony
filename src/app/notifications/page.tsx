@@ -3,9 +3,9 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trash2, CheckCircle2, Heart, MessageSquare, ShieldCheck, User, Clock } from "lucide-react";
+import { Bell, Trash2, CheckCircle2, Heart, MessageSquare, ShieldCheck, User, Clock, CreditCard } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
@@ -45,14 +45,25 @@ export default function NotificationsPage() {
     deleteDoc(notificationRef);
   };
 
-  const getIcon = (text: string) => {
-    const t = text.toLowerCase();
-    if (t.includes('interest')) return <Heart className="h-4 w-4 text-red-500" />;
-    if (t.includes('message')) return <MessageSquare className="h-4 w-4 text-primary" />;
-    if (t.includes('approved') || t.includes('verified')) return <ShieldCheck className="h-4 w-4 text-green-600" />;
-    if (t.includes('membership')) return <Badge className="bg-primary/10 text-primary h-5 w-5 p-0 flex items-center justify-center">₹</Badge>;
-    if (t.includes('viewed')) return <User className="h-4 w-4 text-blue-500" />;
-    return <Bell className="h-4 w-4 text-muted-foreground" />;
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'interest_received':
+      case 'interest_accepted':
+        return <Heart className="h-4 w-4 text-red-500" />;
+      case 'interest_rejected':
+        return <Heart className="h-4 w-4 text-muted-foreground" />;
+      case 'message':
+        return <MessageSquare className="h-4 w-4 text-primary" />;
+      case 'profile_approved':
+      case 'verification_approved':
+        return <ShieldCheck className="h-4 w-4 text-green-600" />;
+      case 'membership_upgraded':
+        return <CreditCard className="h-4 w-4 text-primary" />;
+      case 'profile_viewed':
+        return <User className="h-4 w-4 text-blue-500" />;
+      default:
+        return <Bell className="h-4 w-4 text-muted-foreground" />;
+    }
   };
 
   if (authLoading || loadingNotifications) {
@@ -81,7 +92,7 @@ export default function NotificationsPage() {
           <CardContent className="p-0">
             {notifications.length > 0 ? (
               <div className="divide-y divide-border/50">
-                {notifications.map((notification) => (
+                {notifications.map((notification: any) => (
                   <div 
                     key={notification.id} 
                     className={cn(
@@ -91,13 +102,16 @@ export default function NotificationsPage() {
                     onClick={() => !notification.read && handleMarkAsRead(notification.id)}
                   >
                     <div className="mt-1 h-10 w-10 shrink-0 rounded-2xl bg-muted flex items-center justify-center">
-                      {getIcon(notification.text)}
+                      {getIcon(notification.type)}
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className={cn("text-sm leading-relaxed", !notification.read ? "font-bold text-foreground" : "text-muted-foreground")}>
-                        {notification.text}
+                      <p className={cn("text-sm font-bold", !notification.read ? "text-foreground" : "text-muted-foreground")}>
+                        {notification.title}
                       </p>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {notification.description}
+                      </p>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-wider pt-1">
                         <Clock className="h-3 w-3" />
                         {notification.createdAt?.toDate() ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                       </div>
