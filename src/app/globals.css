@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,7 +23,7 @@
     --border: 162 15% 88%;
     --input: 162 15% 88%;
     --ring: 162 30% 40%;
-    --radius: 0.75rem;
+    --radius: 1.25rem;
   }
 }
 
@@ -36,7 +35,7 @@
     @apply bg-background text-foreground font-body;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-headline;
+    @apply font-headline tracking-tight;
   }
 }
 
@@ -46,10 +45,15 @@
   grid-auto-rows: 10px;
 }
 
-.masonry-item {
-  grid-row-end: span 25;
+.glass-card {
+  @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl;
 }
 
-.masonry-item-tall {
-  grid-row-end: span 35;
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

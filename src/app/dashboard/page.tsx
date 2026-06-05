@@ -88,7 +88,6 @@ export default function DashboardPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  // Calculate Profile Completion Percentage
   const completionPercentage = useMemo(() => {
     if (!profile) return 0;
     const fields = [
@@ -102,21 +101,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (!authLoading && user && db && !loadingNotifications && notifications.length === 0) {
-      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-      addDoc(notificationsRef, {
-        type: 'welcome',
-        title: 'Welcome to Al Batul Matrimony',
-        message: "Welcome to Al Batul Matrimony. We are delighted to have you on your journey towards completing your deen. Please complete your profile to find your match.",
-        senderId: 'system',
-        receiverId: user.uid,
-        read: false,
-        createdAt: serverTimestamp()
-      });
-    }
-  }, [authLoading, user, db, loadingNotifications, notifications]);
 
   useEffect(() => {
     async function fetchSuggestions() {
@@ -167,11 +151,7 @@ export default function DashboardPage() {
     if (!file || !db || !user) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast({
-        variant: "destructive",
-        title: "File too large",
-        description: "Please upload an image smaller than 2MB.",
-      });
+      toast({ variant: "destructive", title: "File too large", description: "Please upload an image smaller than 2MB." });
       return;
     }
 
@@ -180,27 +160,14 @@ export default function DashboardPage() {
     reader.onloadend = () => {
       const base64String = reader.result as string;
       const userRef = doc(db, 'users', user.uid);
-      
-      updateDoc(userRef, {
-        photoUrl: base64String,
-        updatedAt: serverTimestamp()
-      })
-      .then(() => {
-        toast({ title: "Photo Updated", description: "Your profile picture has been updated instantly." });
-      })
-      .catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'update',
-          requestResourceData: { photoUrl: base64String }
-        }));
-      })
-      .finally(() => setIsUploadingPhoto(false));
+      updateDoc(userRef, { photoUrl: base64String, updatedAt: serverTimestamp() })
+        .then(() => toast({ title: "Photo Updated", description: "Your profile picture has been updated instantly." }))
+        .finally(() => setIsUploadingPhoto(false));
     };
     reader.readAsDataURL(file);
   };
 
-  if (authLoading || profileLoading) return <div className="flex h-screen items-center justify-center animate-pulse" />;
+  if (authLoading || profileLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
 
   if (!user) return null;
 
@@ -220,14 +187,15 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto flex items-center justify-center px-4 py-20">
-          <Card className="w-full max-w-md text-center border-none shadow-xl">
+          <Card className="w-full max-w-md text-center border-none shadow-2xl rounded-[3rem] p-12 overflow-hidden bg-white">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-secondary"></div>
             <CardHeader>
-              <UserPlus className="mx-auto h-12 w-12 text-primary opacity-50 mb-4" />
-              <CardTitle className="text-3xl font-headline text-primary">Complete Your Profile</CardTitle>
-              <CardDescription>Join our verified community today.</CardDescription>
+              <UserPlus className="mx-auto h-20 w-20 text-primary/20 mb-6" />
+              <CardTitle className="text-4xl font-headline text-primary">Complete Your Profile</CardTitle>
+              <CardDescription className="text-lg mt-4 leading-relaxed">Join our verified community and begin your journey towards completing your deen.</CardDescription>
             </CardHeader>
-            <CardFooter>
-              <Link href="/setup-profile" className="w-full"><Button className="w-full h-14 text-lg font-bold">Start Setup</Button></Link>
+            <CardFooter className="pt-8">
+              <Link href="/setup-profile" className="w-full"><Button className="w-full h-16 text-xl font-bold shadow-xl rounded-3xl">Start Setup Now</Button></Link>
             </CardFooter>
           </Card>
         </main>
@@ -242,205 +210,167 @@ export default function DashboardPage() {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8 lg:px-8">
-        <div className="mb-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div className="flex items-center gap-4">
+        <div className="mb-12 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+          <div className="flex items-center gap-6">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary/10 bg-muted relative shadow-lg group-hover:border-primary/30 transition-all">
+              <div className="h-32 w-32 overflow-hidden rounded-[2.5rem] border-4 border-primary/10 bg-muted relative shadow-2xl group-hover:border-primary/30 transition-all">
                 {profile.photoUrl ? (
                   <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
-                    <UserPlus className="h-10 w-10" />
-                  </div>
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/30"><UserPlus className="h-12 w-12" /></div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                   <Camera className="h-6 w-6 text-white" />
-                </div>
-                {isUploadingPhoto && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 text-white animate-spin" />
-                  </div>
-                )}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="h-8 w-8 text-white" /></div>
+                {isUploadingPhoto && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-8 w-8 text-white animate-spin" /></div>}
               </div>
-              <div className="absolute -bottom-1 -right-1 h-8 w-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md">
-                <Camera className="h-4 w-4" />
-              </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handlePhotoUpload}
-              />
+              <div className="absolute -bottom-2 -right-2 h-10 w-10 bg-primary text-white rounded-2xl flex items-center justify-center shadow-xl"><Camera className="h-5 w-5" /></div>
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
-              <div className="flex items-center gap-2 mt-1">
-                 <Badge variant="outline" className={`h-6 px-2 gap-1 text-[10px] ${profile.status === 'approved' ? 'bg-green-600 text-white border-none' : 'bg-muted'}`}>
-                    {profile.status === 'approved' ? <ShieldCheck className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                    {profile.status === 'approved' ? 'VERIFIED' : 'PENDING'}
+              <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
+              <div className="flex items-center gap-3 mt-3">
+                 <Badge variant="outline" className={`h-7 px-4 gap-2 text-[10px] font-bold tracking-widest ${profile.status === 'approved' ? 'bg-green-600 text-white border-none shadow-md' : 'bg-muted'}`}>
+                    {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                    {profile.status === 'approved' ? 'VERIFIED MEMBER' : 'VERIFICATION PENDING'}
                  </Badge>
                  {planName !== 'Free' && (
-                   <Badge className="h-6 px-2 gap-1 bg-primary border-none text-white text-[10px]">
-                      <Crown className="h-3 w-3 text-secondary" />
-                      {planName}
+                   <Badge className="h-7 px-4 gap-2 bg-gradient-to-r from-primary to-primary/80 border-none text-white text-[10px] font-bold shadow-md">
+                      <Crown className="h-4 w-4 text-secondary" /> {planName.toUpperCase()}
                    </Badge>
                  )}
               </div>
             </div>
           </div>
           
-          <Link href="/setup-profile">
-            <Button className="h-12 px-6 gap-2 font-bold shadow-md rounded-xl">
-               <Edit2 className="h-4 w-4" /> Edit Profile
-            </Button>
-          </Link>
+          <Link href="/setup-profile"><Button className="h-14 px-8 gap-3 font-bold shadow-xl rounded-2xl bg-white text-primary hover:bg-muted border border-border"><Edit2 className="h-5 w-5" /> Edit Profile</Button></Link>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-8">
-            {/* Intelligent Matches Section */}
-            <Card className={`border-none shadow-lg overflow-hidden ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <CardTitle className="flex items-center gap-2 text-2xl font-headline">
-                  <Sparkles className="h-6 w-6 text-secondary" /> Intelligent Matches
+        <div className="grid gap-10 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-10">
+            {/* AI Matches */}
+            <Card className={`border-none shadow-2xl overflow-hidden rounded-[3rem] ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
+              <CardHeader className="p-8 pb-4">
+                <CardTitle className="flex items-center gap-3 text-3xl font-headline">
+                  <Sparkles className="h-8 w-8 text-secondary" /> Intelligent Suggestions
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-8 pt-0">
                 {profile.status !== 'approved' ? (
-                  <div className="py-16 text-center text-muted-foreground">
-                    <Lock className="mx-auto mb-4 h-12 w-12 opacity-20" />
-                    <p className="text-sm font-bold">Locked until verification is complete.</p>
+                  <div className="py-20 text-center opacity-40">
+                    <Lock className="mx-auto mb-6 h-16 w-16" />
+                    <p className="text-xl font-bold">Unlock after verification</p>
+                    <p className="text-sm mt-2">AI matching requires an approved profile.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     {loadingSuggestions ? (
-                      <div className="flex h-40 items-center justify-center animate-pulse" />
+                      <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin opacity-20" /></div>
                     ) : aiError ? (
-                      <div className="text-center py-10 opacity-60">
-                         <AlertCircle className="mx-auto h-8 w-8 mb-2 text-primary-foreground/50" />
-                         <p className="text-xs">{aiError}</p>
-                      </div>
+                      <div className="text-center py-10 opacity-60"><AlertCircle className="mx-auto h-10 w-10 mb-4" /><p className="text-sm">{aiError}</p></div>
                     ) : aiSuggestions?.suggestions.length ? (
                       aiSuggestions.suggestions.map((suggestion) => (
-                        <div key={suggestion.profileId} className="group flex flex-col gap-5 rounded-2xl bg-white/10 p-5 backdrop-blur-md md:flex-row md:items-center hover:bg-white/20 transition-all">
-                          <UserAvatar userId={suggestion.profileId} className="h-16 w-16 shrink-0 rounded-2xl bg-white/20" />
-                          <div className="flex-1"><p className="text-sm opacity-90 leading-relaxed">{suggestion.reason}</p></div>
-                          <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="sm" className="font-bold">View Profile</Button></Link>
+                        <div key={suggestion.profileId} className="group flex flex-col gap-6 rounded-[2.5rem] bg-white/10 p-8 backdrop-blur-xl md:flex-row md:items-center hover:bg-white/20 transition-all border border-white/10 shadow-lg">
+                          <UserAvatar userId={suggestion.profileId} className="h-20 w-20 shrink-0 rounded-[1.5rem] bg-white/20 shadow-xl" />
+                          <div className="flex-1 space-y-2">
+                             <p className="text-base font-medium leading-relaxed opacity-90 italic">"{suggestion.reason}"</p>
+                          </div>
+                          <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="lg" className="font-bold h-12 px-6 rounded-2xl shadow-xl">View Profile</Button></Link>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-10 opacity-60">
-                         <Heart className="mx-auto h-8 w-8 mb-2" />
-                         <p className="text-xs">Finding matches for you...</p>
-                      </div>
+                      <div className="text-center py-16 opacity-40"><Heart className="mx-auto h-12 w-12 mb-4" /><p className="text-xl font-bold">Discovering compatibility...</p></div>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Quick Actions Grid for easier navigation */}
+            {/* Quick Actions */}
             <section>
-               <h2 className="text-xl font-bold font-headline mb-4 text-primary px-1">Quick Actions</h2>
-               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Link href="/setup-profile" className="block">
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
-                       <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                          <Edit2 className="h-6 w-6" />
-                       </div>
-                       <span className="text-xs font-bold">Edit Details</span>
-                    </Card>
-                  </Link>
-                  <Link href={`/profiles/${user.uid}`} className="block">
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
-                       <div className="h-12 w-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary-foreground">
-                          <Eye className="h-6 w-6" />
-                       </div>
-                       <span className="text-xs font-bold">View Profile</span>
-                    </Card>
-                  </Link>
-                  <Link href="/membership" className="block">
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
-                       <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
-                          <Crown className="h-6 w-6" />
-                       </div>
-                       <span className="text-xs font-bold">Membership</span>
-                    </Card>
-                  </Link>
-                  <Link href="/discover" className="block">
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
-                       <div className="h-12 w-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
-                          <Search className="h-6 w-6" />
-                       </div>
-                       <span className="text-xs font-bold">Find Matches</span>
-                    </Card>
-                  </Link>
+               <h2 className="text-2xl font-bold font-headline mb-6 text-primary px-2">Essential Actions</h2>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                  {[
+                    { href: "/setup-profile", icon: Edit2, label: "Edit Details", color: "bg-primary/10 text-primary" },
+                    { href: `/profiles/${user.uid}`, icon: Eye, label: "View Profile", color: "bg-secondary/10 text-secondary-foreground" },
+                    { href: "/membership", icon: Crown, label: "Membership", color: "bg-orange-100 text-orange-600" },
+                    { href: "/discover", icon: Search, label: "Find Matches", color: "bg-blue-100 text-blue-600" }
+                  ].map((act, i) => (
+                    <Link key={i} href={act.href} className="block">
+                      <Card className="hover:bg-accent/50 transition-all cursor-pointer border-none shadow-xl h-full flex flex-col items-center justify-center p-8 text-center gap-4 rounded-[2rem] group">
+                         <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg", act.color)}>
+                            <act.icon className="h-8 w-8" />
+                         </div>
+                         <span className="text-sm font-bold opacity-80">{act.label}</span>
+                      </Card>
+                    </Link>
+                  ))}
                </div>
             </section>
           </div>
 
-          <div className="space-y-6">
-            {/* Profile Completion Card */}
-            <Card className="border-none shadow-lg bg-white overflow-hidden">
-               <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between mb-2">
-                     <CardTitle className="text-lg font-headline text-primary">Profile Score</CardTitle>
-                     <Badge className="bg-primary/10 text-primary border-none">{completionPercentage}%</Badge>
+          <div className="space-y-10">
+            {/* Profile Score */}
+            <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-[3rem]">
+               <CardHeader className="p-8 pb-4">
+                  <div className="flex items-center justify-between mb-4">
+                     <CardTitle className="text-2xl font-headline text-primary">Profile Score</CardTitle>
+                     <Badge className="bg-primary/10 text-primary border-none font-bold text-lg h-10 px-4 rounded-2xl">{completionPercentage}%</Badge>
                   </div>
-                  <Progress value={completionPercentage} className="h-2" />
+                  <Progress value={completionPercentage} className="h-3 bg-muted rounded-full" />
                </CardHeader>
-               <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground mb-4">
+               <CardContent className="p-8 pt-4">
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">
                     {completionPercentage < 100 
-                      ? "Completing your profile increases your chances of finding a compatible partner by 80%." 
-                      : "Your profile is fully complete! You're ready to find your match."}
+                      ? "Completing your profile increases your chances of finding a compatible partner by up to 80%." 
+                      : "Mashallah! Your profile is fully complete and looking great."}
                   </p>
                   {completionPercentage < 100 && (
                     <Link href="/setup-profile">
-                      <Button variant="outline" className="w-full text-xs font-bold h-9 gap-2">
-                         Complete Now <ArrowRight className="h-3 w-3" />
+                      <Button variant="outline" className="w-full text-sm font-bold h-12 gap-2 rounded-2xl border-2">
+                         Complete Now <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
                   )}
                </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg">
-              <CardHeader><CardTitle className="text-xl font-headline text-primary">Your Membership</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-muted/50 rounded-xl flex items-center justify-between">
+            {/* Membership */}
+            <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden">
+              <CardHeader className="p-8 bg-muted/30 border-b">
+                <CardTitle className="text-2xl font-headline text-primary">Your Status</CardTitle>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="p-6 bg-primary/5 rounded-[2rem] flex items-center justify-between border border-primary/10">
                     <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Active Plan</p>
-                        <p className="font-bold text-lg">{planName}</p>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Active Plan</p>
+                        <p className="font-bold text-2xl text-primary">{planName}</p>
                     </div>
-                    {planName === 'Free' ? <Zap className="h-6 w-6 text-orange-400" /> : <Crown className="h-6 w-6 text-primary" />}
+                    {planName === 'Free' ? <Zap className="h-10 w-10 text-orange-400" /> : <Crown className="h-10 w-10 text-primary" />}
                 </div>
                 <Link href="/membership" className="block">
-                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-11">
-                        {planName === 'Premium' ? "Manage Plan" : "Upgrade Benefits"}
+                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-14 rounded-2xl text-lg shadow-xl">
+                        {planName === 'Premium' ? "Manage Benefits" : "Upgrade Plan"}
                     </Button>
                 </Link>
-                {planName === 'Free' && <p className="text-[10px] text-center text-muted-foreground">Unlock chat and contact info with an upgrade.</p>}
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg">
-                <CardHeader><CardTitle className="text-xl font-headline text-primary">Recent Interactions</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <Link href="/interests" className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-colors">
-                        <div className="flex items-center gap-3">
-                           <div className="h-10 w-10 bg-accent rounded-full flex items-center justify-center"><Heart className="h-5 w-5 text-primary" /></div>
-                           <span className="text-sm font-medium">Interests</span>
+            {/* Interactions */}
+            <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden">
+                <CardHeader className="p-8 border-b"><CardTitle className="text-2xl font-headline text-primary">Recent Interactions</CardTitle></CardHeader>
+                <CardContent className="p-8 space-y-4">
+                    <Link href="/interests" className="flex items-center justify-between p-5 hover:bg-muted/50 rounded-[1.5rem] transition-all border border-transparent hover:border-border">
+                        <div className="flex items-center gap-4">
+                           <div className="h-12 w-12 bg-accent rounded-2xl flex items-center justify-center shadow-md"><Heart className="h-6 w-6 text-primary" /></div>
+                           <span className="font-bold">Interests</span>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
                     </Link>
-                    <Link href="/messages" className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-colors">
-                        <div className="flex items-center gap-3">
-                           <div className="h-10 w-10 bg-accent rounded-full flex items-center justify-center"><MessageSquare className="h-5 w-5 text-primary" /></div>
-                           <span className="text-sm font-medium">Messages</span>
+                    <Link href="/messages" className="flex items-center justify-between p-5 hover:bg-muted/50 rounded-[1.5rem] transition-all border border-transparent hover:border-border">
+                        <div className="flex items-center gap-4">
+                           <div className="h-12 w-12 bg-accent rounded-2xl flex items-center justify-center shadow-md"><MessageSquare className="h-6 w-6 text-primary" /></div>
+                           <span className="font-bold">Chat Messages</span>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <ArrowRight className="h-5 w-5 text-muted-foreground" />
                     </Link>
                 </CardContent>
             </Card>
