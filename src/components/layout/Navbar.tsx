@@ -2,16 +2,18 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
-import { doc } from "firebase/firestore";
+import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 export function Navbar() {
   const { user, loading } = useUser();
@@ -27,6 +29,19 @@ export function Navbar() {
   }, [db, user]);
 
   const { data: profile } = useDoc(profileRef);
+
+  const notificationsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, 'users', user.uid, 'notifications'),
+      orderBy('createdAt', 'desc'),
+      limit(10)
+    );
+  }, [db, user]);
+
+  const { data: notifications } = useCollection(notificationsQuery);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const isAdmin = profile?.role === 'admin';
   const hasProfile = !!profile && profile.isProfileComplete;
   const isApproved = profile?.status === 'approved';
@@ -47,6 +62,18 @@ export function Navbar() {
         description: error.message,
       });
     }
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    if (!db || !user) return;
+    const notificationRef = doc(db, 'users', user.uid, 'notifications', id);
+    updateDoc(notificationRef, { read: true });
+  };
+
+  const handleDeleteNotification = (id: string) => {
+    if (!db || !user) return;
+    const notificationRef = doc(db, 'users', user.uid, 'notifications', id);
+    deleteDoc(notificationRef);
   };
 
   const navLinks = [
@@ -104,10 +131,53 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           {!loading && user ? (
             <>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-secondary"></span>
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-secondary"></span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <div className="p-4 border-b bg-muted/50">
+                    <h3 className="font-bold text-sm">Notifications</h3>
+                  </div>
+                  <div className="max-h-[300px] overflow-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((n: any) => (
+                        <div 
+                          key={n.id} 
+                          className={cn(
+                            "p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors",
+                            !n.read ? "bg-primary/5" : "bg-transparent"
+                          )}
+                          onClick={() => !n.read && handleMarkAsRead(n.id)}
+                        >
+                          <div className="flex-1 space-y-1">
+                            <p className={cn(n.read ? "text-muted-foreground" : "font-semibold")}>{n.text}</p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {n.createdAt?.toDate() ? format(n.createdAt.toDate(), 'MMM d, HH:mm') : 'Recently'}
+                            </span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNotification(n.id);
+                          }}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-muted-foreground text-xs italic">
+                        No notifications.
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               <Link href="/dashboard">
                 <Button variant={pathname === '/dashboard' ? 'default' : 'outline'} className="hidden gap-2 md:flex">
                   <User className="h-4 w-4" />

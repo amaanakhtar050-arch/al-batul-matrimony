@@ -106,6 +106,17 @@
       },
       "required": ["text", "senderId", "timestamp"]
     },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification message for a user.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "read": { "type": "boolean", "default": false },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "read", "createdAt"]
+    },
     "PlatformSettings": {
       "title": "Platform Settings",
       "description": "Global configuration settings for the Al Batul platform.",
@@ -126,6 +137,10 @@
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Stores individual user profile data."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Stores user notifications."
     },
     "/payments/{paymentId}": {
       "schema": "MembershipPayment",

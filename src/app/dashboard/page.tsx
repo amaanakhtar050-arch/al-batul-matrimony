@@ -24,10 +24,10 @@ import {
   Search,
   MessageSquare
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where, limit, getDocs, doc } from "firebase/firestore";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { collection, query, where, limit, getDocs, doc, addDoc, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,12 +44,31 @@ export default function DashboardPage() {
 
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
   
+  const notificationsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, 'users', user.uid, 'notifications'), limit(1));
+  }, [db, user]);
+
+  const { data: notifications, loading: loadingNotifications } = useCollection(notificationsQuery);
+
   const [aiSuggestions, setAiSuggestions] = useState<IntelligentMatchmakerSuggestionsOutput | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
+
+  // Test Notification logic
+  useEffect(() => {
+    if (!authLoading && user && db && !loadingNotifications && notifications.length === 0) {
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+      addDoc(notificationsRef, {
+        text: "Welcome to Al Batul Matrimony.",
+        read: false,
+        createdAt: serverTimestamp()
+      });
+    }
+  }, [authLoading, user, db, loadingNotifications, notifications]);
 
   useEffect(() => {
     async function fetchSuggestions() {
