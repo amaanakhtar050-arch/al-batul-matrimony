@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -6,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Check, X, User, MessageSquare, Users } from "lucide-react";
+import { Heart, Check, X, User, MessageSquare, Users, Trash2 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy } from "firebase/firestore";
+import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy, deleteDoc, or, and } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
@@ -57,13 +56,29 @@ export default function InterestsPage() {
     }).then(() => {
       toast({
         title: status === 'accepted' ? "Interest Accepted" : "Interest Declined",
-        description: status === 'accepted' ? "You can now chat with this member." : "Request removed from queue.",
+        description: status === 'accepted' ? "You can now chat with this member." : "Request declined.",
       });
     }).catch(async (e) => {
       errorEmitter.emit("permission-error", new FirestorePermissionError({
         path: interestRef.path,
         operation: 'update',
         requestResourceData: { status }
+      }));
+    });
+  };
+
+  const handleWithdrawInterest = (interestId: string) => {
+    if (!db || !confirm("Are you sure you want to withdraw this interest request?")) return;
+    const interestRef = doc(db, "interests", interestId);
+    deleteDoc(interestRef).then(() => {
+      toast({
+        title: "Interest Withdrawn",
+        description: "Your request has been removed.",
+      });
+    }).catch(async (e) => {
+      errorEmitter.emit("permission-error", new FirestorePermissionError({
+        path: interestRef.path,
+        operation: 'delete'
       }));
     });
   };
@@ -88,8 +103,8 @@ export default function InterestsPage() {
       
       <main className="container mx-auto px-4 py-12 lg:px-8">
         <header className="mb-10">
-          <h1 className="text-3xl font-bold font-headline mb-2">Interest Requests</h1>
-          <p className="text-muted-foreground">Manage your connection requests and matrimonial interests.</p>
+          <h1 className="text-3xl font-bold font-headline mb-2">Interests Hub</h1>
+          <p className="text-muted-foreground">Manage your connections and matrimonial interests in one place.</p>
         </header>
 
         <Tabs defaultValue="received" className="w-full">
@@ -130,7 +145,7 @@ export default function InterestsPage() {
                       <div className="flex-1">
                         <CardTitle className="text-lg font-bold truncate">{interest.fromUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs">
-                          Received on {interest.createdAt?.toDate() ? interest.createdAt.toDate().toLocaleDateString() : 'recent'}
+                          {interest.createdAt?.toDate() ? interest.createdAt.toDate().toLocaleDateString() : 'recent'}
                         </CardDescription>
                       </div>
                       <Badge variant={interest.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px] uppercase">
@@ -144,7 +159,7 @@ export default function InterestsPage() {
                             <Check className="h-4 w-4" /> Accept
                           </Button>
                           <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-10 text-destructive hover:bg-destructive/5" onClick={() => handleUpdateStatus(interest.id, 'declined')}>
-                            <X className="h-4 w-4" /> Decline
+                            <X className="h-4 w-4" /> Reject
                           </Button>
                         </div>
                       )}
@@ -235,7 +250,7 @@ export default function InterestsPage() {
                       <div className="flex-1">
                         <CardTitle className="text-lg font-bold truncate">{interest.toUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs uppercase tracking-wider">
-                          Status: {interest.status}
+                          {interest.status}
                         </CardDescription>
                       </div>
                       <Badge variant={interest.status === 'accepted' ? 'default' : interest.status === 'declined' ? 'destructive' : 'secondary'} className="h-5 text-[9px]">
@@ -243,26 +258,32 @@ export default function InterestsPage() {
                       </Badge>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      {interest.status === 'accepted' ? (
-                        <Link href="/messages" className="block">
-                          <Button className="w-full gap-2 h-10 font-bold" variant="secondary">
-                            <MessageSquare className="h-4 w-4" /> Message Now
+                      <div className="flex flex-col gap-2">
+                        {interest.status === 'pending' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full gap-2 text-destructive hover:bg-destructive/5"
+                            onClick={() => handleWithdrawInterest(interest.id)}
+                          >
+                            <Trash2 className="h-4 w-4" /> Withdraw Request
                           </Button>
-                        </Link>
-                      ) : interest.status === 'declined' ? (
-                        <p className="text-center text-xs text-muted-foreground italic py-2">The member declined the request.</p>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                           <p className="text-center text-xs text-muted-foreground py-2 flex items-center justify-center gap-2">
-                              <User className="h-3 w-3" /> Awaiting response...
-                           </p>
-                           <Link href={`/profiles/${interest.toUserId}`}>
-                            <Button variant="ghost" size="sm" className="w-full text-xs h-8 opacity-70">
-                              View Profile
+                        )}
+                        {interest.status === 'accepted' ? (
+                          <Link href="/messages" className="block w-full">
+                            <Button className="w-full gap-2 h-10 font-bold" variant="secondary">
+                              <MessageSquare className="h-4 w-4" /> Message Now
                             </Button>
                           </Link>
-                        </div>
-                      )}
+                        ) : interest.status === 'declined' ? (
+                          <p className="text-center text-xs text-muted-foreground italic py-2">The member declined the request.</p>
+                        ) : null}
+                        <Link href={`/profiles/${interest.toUserId}`} className="block w-full">
+                          <Button variant="ghost" size="sm" className="w-full text-xs h-8 opacity-70">
+                            View Profile
+                          </Button>
+                        </Link>
+                      </div>
                     </CardContent>
                   </Card>
                 ))

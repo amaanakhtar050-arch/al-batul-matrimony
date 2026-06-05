@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -25,14 +24,15 @@ import {
   Crown,
   CheckCircle2,
   Clock,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, where, addDoc, serverTimestamp, limit } from "firebase/firestore";
+import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -78,7 +78,7 @@ export default function ProfileDetailPage() {
   const existingSentInterest = sentInterests?.[0];
   const existingReceivedInterest = receivedInterests?.[0];
 
-  const handleSendInterest = () => {
+  const handleSendInterest = async () => {
     if (!currentUser || !db || !profile) return;
     
     if (viewerProfile?.status !== 'approved') {
@@ -87,6 +87,21 @@ export default function ProfileDetailPage() {
     }
 
     setIsSending(true);
+
+    // Double check for duplicates even though UI should prevent it
+    const q = query(
+      collection(db, "interests"),
+      where("fromUserId", "==", currentUser.uid),
+      where("toUserId", "==", profile.id),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      toast({ title: "Already Sent", description: "You have already sent an interest to this profile." });
+      setIsSending(false);
+      return;
+    }
+
     const interestData = {
       fromUserId: currentUser.uid,
       fromUserName: viewerProfile?.fullName || currentUser.email,
@@ -99,9 +114,17 @@ export default function ProfileDetailPage() {
 
     const interestRef = collection(db, "interests");
     addDoc(interestRef, interestData)
-      .then(() => toast({ title: "Interest Sent" }))
+      .then(() => toast({ title: "Interest Sent", description: "Wait for their response!" }))
       .catch(async (e) => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: interestRef.path, operation: 'create' })))
       .finally(() => setIsSending(false));
+  };
+
+  const handleWithdrawInterest = () => {
+    if (!db || !existingSentInterest) return;
+    const interestRef = doc(db, "interests", existingSentInterest.id);
+    deleteDoc(interestRef).then(() => {
+      toast({ title: "Interest Withdrawn" });
+    }).catch(async (e) => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: interestRef.path, operation: 'delete' })));
   };
 
   if (profileLoading || viewerLoading) return <div className="flex h-screen items-center justify-center animate-pulse" />;
@@ -142,12 +165,22 @@ export default function ProfileDetailPage() {
               <div className="flex flex-col gap-4">
                 <div className="flex gap-4">
                   {existingSentInterest ? (
-                    <Button disabled className="h-14 flex-1 gap-2 text-lg font-bold bg-muted text-muted-foreground">
-                      {existingSentInterest.status.toUpperCase()}
-                    </Button>
+                    <div className="flex flex-col flex-1 gap-2">
+                      <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-muted text-muted-foreground">
+                        {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : null}
+                        {existingSentInterest.status.toUpperCase()}
+                      </Button>
+                      {existingSentInterest.status === 'pending' && (
+                        <Button variant="ghost" className="text-destructive h-10 gap-2" onClick={handleWithdrawInterest}>
+                          <Trash2 className="h-4 w-4" /> Withdraw Request
+                        </Button>
+                      )}
+                    </div>
                   ) : existingReceivedInterest ? (
                     <Link href="/interests" className="flex-1">
-                      <Button className="h-14 w-full gap-2 text-lg font-bold">Respond to Interest</Button>
+                      <Button className="h-14 w-full gap-2 text-lg font-bold">
+                        {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : existingReceivedInterest.status.toUpperCase()}
+                      </Button>
                     </Link>
                   ) : (
                     <Button 
