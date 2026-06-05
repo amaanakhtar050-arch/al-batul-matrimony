@@ -21,7 +21,8 @@ import {
   ShieldCheck,
   Eye,
   FileText,
-  UserCircle
+  UserCircle,
+  XCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (!db || !confirm("Delete this user permanently?")) return;
+    if (!db || !confirm("Delete this user permanently? This action cannot be undone.")) return;
     const userRef = doc(db, "users", userId);
     deleteDoc(userRef).then(() => {
       toast({ title: "User Deleted", variant: "destructive" });
@@ -235,10 +236,10 @@ export default function AdminDashboard() {
                             <Check className="h-3 w-3 mr-1" /> Approve
                           </Button>
                           <Button size="sm" variant="outline" className="text-destructive border-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
-                            Reject
+                            <XCircle className="h-3 w-3 mr-1" /> Reject
                           </Button>
                           <Link href={`/profiles/${user.id}`}>
-                            <Button size="sm" variant="ghost" className="h-8">Profile</Button>
+                            <Button size="sm" variant="ghost" className="h-8">View Profile</Button>
                           </Link>
                         </div>
                       </TableCell>
@@ -340,16 +341,18 @@ export default function AdminDashboard() {
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8" 
                             onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}
+                            title={user.isSuspended ? "Unlock Account" : "Suspend Account"}
                           >
                             {user.isSuspended ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-orange-600" />}
                           </Button>
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8"
                             onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}
+                            title={user.isBanned ? "Unban Account" : "Ban Account"}
                           >
                             <Ban className={`h-4 w-4 ${user.isBanned ? "text-primary" : "text-destructive"}`} />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteUser(user.id)}>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteUser(user.id)} title="Delete Account Permanently">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

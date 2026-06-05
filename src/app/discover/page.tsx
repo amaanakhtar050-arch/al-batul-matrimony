@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Filter, Search, Lock } from "lucide-react";
+import { Filter, Search, Lock, ShieldCheck } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
@@ -36,6 +36,7 @@ export default function DiscoverPage() {
     }
   }, [user, authLoading, router]);
 
+  // STRICT FILTERING: Only approved profiles appear in search results
   const approvedUsersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(
@@ -71,7 +72,7 @@ export default function DiscoverPage() {
     );
   }
 
-  // Restrictions check
+  // ACCESS GATING: Pending or restricted profiles cannot search
   if (!profile || profile.status !== 'approved') {
     return (
       <div className="min-h-screen bg-background">
@@ -81,20 +82,27 @@ export default function DiscoverPage() {
              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/50 text-primary">
                 <Lock className="h-10 w-10" />
              </div>
-             <h1 className="text-3xl font-bold mb-4 font-headline">Access Restricted</h1>
+             <h1 className="text-3xl font-bold mb-4 font-headline text-primary">Access Restricted</h1>
              <p className="text-muted-foreground mb-8">
                {!profile 
                  ? "You must complete your profile before you can discover potential matches." 
-                 : "Your profile is currently under review. Once approved by our administrators, you'll gain full access to search and view matches."}
+                 : profile.status === 'rejected' 
+                   ? "Your verification was not approved. Please review your profile details and resubmit."
+                   : "Your profile is currently under review by our admin team. Once approved, you'll gain full access to search and view matches."}
              </p>
              {!profile ? (
                 <Link href="/setup-profile">
-                  <Button size="lg" className="w-full h-12">Complete Profile Now</Button>
+                  <Button size="lg" className="w-full h-12 font-bold shadow-lg">Complete Profile Now</Button>
                 </Link>
              ) : (
-                <Link href="/dashboard">
-                  <Button variant="outline" size="lg" className="w-full h-12">Go to Dashboard</Button>
-                </Link>
+                <div className="flex flex-col gap-4">
+                  <Link href="/setup-profile">
+                    <Button variant="outline" size="lg" className="w-full h-12">Edit Profile Details</Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button variant="ghost" size="lg" className="w-full h-12">Back to Dashboard</Button>
+                  </Link>
+                </div>
              )}
            </div>
         </main>
@@ -108,7 +116,9 @@ export default function DiscoverPage() {
       
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <header className="mb-10">
-          <h1 className="mb-2 text-3xl font-bold font-headline">Discover Matches</h1>
+          <h1 className="mb-2 text-3xl font-bold font-headline text-primary flex items-center gap-2">
+            Discover Matches <ShieldCheck className="h-6 w-6 text-primary/40" />
+          </h1>
           <p className="text-muted-foreground">Find potential life partners within our verified community.</p>
         </header>
 
@@ -154,7 +164,7 @@ export default function DiscoverPage() {
           </div>
           
           <div className="flex items-end">
-            <Button className="w-full gap-2">
+            <Button className="w-full gap-2 h-11 shadow-sm">
               <Filter className="h-4 w-4" />
               Apply Filters
             </Button>
@@ -187,7 +197,7 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
-            <p className="text-xl font-medium text-muted-foreground">No matching profiles found.</p>
+            <p className="text-xl font-medium text-muted-foreground">No matching approved profiles found.</p>
             <p className="text-sm text-muted-foreground">Try adjusting your filters or search criteria.</p>
           </div>
         )}

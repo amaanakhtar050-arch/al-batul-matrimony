@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, Edit2, Clock, Crown, ShieldAlert, Lock, UserCheck, XCircle } from "lucide-react";
+import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, Edit2, Clock, Crown, ShieldAlert, Lock, UserCheck, XCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
@@ -13,7 +13,6 @@ import { collection, query, where, limit, getDocs, doc } from "firebase/firestor
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useUser();
@@ -54,6 +53,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchSuggestions() {
+      // AI Suggestions only for approved members
       if (!profile || !db || profile.status !== 'approved' || profile.isSuspended || profile.isBanned) return;
       setLoadingSuggestions(true);
       try {
@@ -104,13 +104,14 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
+  // ACCOUNT SECURITY: Enforce Banned and Suspended states
   if (profile?.isBanned) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
-        <h1 className="text-3xl font-bold mb-2">Account Banned</h1>
-        <p className="text-muted-foreground text-center max-w-md">Access has been revoked for community safety.</p>
-        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Home</Button>
+        <h1 className="text-3xl font-bold mb-2 font-headline">Account Banned</h1>
+        <p className="text-muted-foreground text-center max-w-md">Your access has been permanently revoked due to community policy violations.</p>
+        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Back to Home</Button>
       </div>
     );
   }
@@ -119,9 +120,9 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
         <Lock className="h-20 w-20 text-orange-600 mb-4" />
-        <h1 className="text-3xl font-bold mb-2">Account Suspended</h1>
-        <p className="text-muted-foreground max-w-md">Review in progress.</p>
-        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Home</Button>
+        <h1 className="text-3xl font-bold mb-2 font-headline">Account Suspended</h1>
+        <p className="text-muted-foreground max-w-md">Your account is temporarily suspended pending administrative review.</p>
+        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Back to Home</Button>
       </div>
     );
   }
@@ -134,12 +135,12 @@ export default function DashboardPage() {
           <Card className="w-full max-w-md text-center border-none shadow-xl">
             <CardHeader>
               <UserPlus className="mx-auto h-12 w-12 text-primary opacity-50 mb-4" />
-              <CardTitle className="text-3xl font-headline">Verify Identity</CardTitle>
-              <CardDescription className="text-base">Complete your profile and upload verification docs to get started.</CardDescription>
+              <CardTitle className="text-3xl font-headline text-primary">Verify Identity</CardTitle>
+              <CardDescription className="text-base">Complete your profile and upload verification documents to join our community.</CardDescription>
             </CardHeader>
             <CardFooter>
               <Link href="/setup-profile" className="w-full">
-                <Button className="w-full h-14 text-lg font-bold">Start Verification</Button>
+                <Button className="w-full h-14 text-lg font-bold shadow-lg">Start Profile Setup</Button>
               </Link>
             </CardFooter>
           </Card>
@@ -157,8 +158,8 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <h1 className="text-4xl font-bold font-headline">Salam, {profile.fullName}!</h1>
-            <p className="text-muted-foreground">Verification status: <span className="font-bold uppercase text-primary">{profile.status}</span></p>
+            <h1 className="text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
+            <p className="text-muted-foreground">Account Status: <span className="font-bold uppercase text-primary">{profile.status}</span></p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Badge 
@@ -178,11 +179,24 @@ export default function DashboardPage() {
         </div>
 
         {profile.status === 'pending' && (
-          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/30 p-6 text-primary border border-primary/10">
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-accent/30 p-6 text-primary border border-primary/10 animate-pulse">
             <UserCheck className="h-8 w-8 shrink-0 text-primary" />
             <div>
-              <p className="font-bold text-lg">Documents Under Review</p>
-              <p className="opacity-80">Our team is verifying your government ID and selfie. This usually takes 12-24 hours.</p>
+              <p className="font-bold text-lg">Verification in Progress</p>
+              <p className="opacity-80">Our admin team is reviewing your documents. You'll gain search access once approved (usually 12-24 hours).</p>
+            </div>
+          </div>
+        )}
+
+        {profile.status === 'rejected' && (
+          <div className="mb-8 flex items-center gap-4 rounded-2xl bg-destructive/10 p-6 text-destructive border border-destructive/20">
+            <AlertCircle className="h-8 w-8 shrink-0" />
+            <div>
+              <p className="font-bold text-lg">Verification Rejected</p>
+              <p className="opacity-80">Your profile did not meet our verification standards. Please check your photos and ID documents and update them.</p>
+              <Link href="/setup-profile">
+                <Button variant="link" className="p-0 h-auto text-destructive font-bold underline">Resubmit Profile</Button>
+              </Link>
             </div>
           </div>
         )}
@@ -230,7 +244,7 @@ export default function DashboardPage() {
                   ) : (
                     <div className="text-center py-10 opacity-60">
                        <Heart className="mx-auto h-12 w-12 mb-3 opacity-30" />
-                       <p>Refining matches...</p>
+                       <p>Refining matches based on your profile...</p>
                     </div>
                   )}
                 </div>
@@ -241,9 +255,9 @@ export default function DashboardPage() {
           <div className="space-y-6">
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl font-headline">
-                  <Activity className="h-5 w-5 text-primary" />
-                  Identity Health
+                <CardTitle className="flex items-center gap-2 text-xl font-headline text-primary">
+                  <Activity className="h-5 w-5" />
+                  Profile Health
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -273,11 +287,12 @@ export default function DashboardPage() {
             {!isPremium && (
                <Card className="bg-accent/10 border-none shadow-lg">
                 <CardHeader>
-                  <CardTitle className="text-xl font-headline">Membership</CardTitle>
+                  <CardTitle className="text-xl font-headline text-primary">Membership</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <p className="text-xs text-muted-foreground">Unlock contact details and priority listing by upgrading your plan.</p>
                   <Link href="/membership" className="block pt-2">
-                    <Button variant="secondary" className="w-full font-bold h-11">Upgrade Plan</Button>
+                    <Button variant="secondary" className="w-full font-bold h-11 text-primary shadow-sm border-none">Upgrade Now</Button>
                   </Link>
                 </CardContent>
               </Card>
