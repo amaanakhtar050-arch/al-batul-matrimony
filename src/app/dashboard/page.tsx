@@ -1,10 +1,10 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { 
   Sparkles, 
   Activity, 
@@ -24,9 +24,12 @@ import {
   Search,
   MessageSquare,
   Camera,
-  Loader2
+  Loader2,
+  Eye,
+  User,
+  Settings
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where, limit, getDocs, doc, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
@@ -62,11 +65,21 @@ export default function DashboardPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
+  // Calculate Profile Completion Percentage
+  const completionPercentage = useMemo(() => {
+    if (!profile) return 0;
+    const fields = [
+      'fullName', 'age', 'gender', 'sect', 'city', 'country', 
+      'mobileNumber', 'about', 'photoUrl', 'idPhotoUrl', 'selfiePhotoUrl'
+    ];
+    const filledFields = fields.filter(field => !!profile[field]);
+    return Math.round((filledFields.length / fields.length) * 100);
+  }, [profile]);
+
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
-  // Test Notification logic
   useEffect(() => {
     if (!authLoading && user && db && !loadingNotifications && notifications.length === 0) {
       const notificationsRef = collection(db, 'users', user.uid, 'notifications');
@@ -202,8 +215,8 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <div className="mb-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary/10 bg-muted relative shadow-lg">
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-primary/10 bg-muted relative shadow-lg group-hover:border-primary/30 transition-all">
                 {profile.photoUrl ? (
                   <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
                 ) : (
@@ -211,19 +224,18 @@ export default function DashboardPage() {
                     <UserPlus className="h-10 w-10" />
                   </div>
                 )}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                   <Camera className="h-6 w-6 text-white" />
+                </div>
                 {isUploadingPhoto && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <Loader2 className="h-6 w-6 text-white animate-spin" />
                   </div>
                 )}
               </div>
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 h-8 w-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
-                disabled={isUploadingPhoto}
-              >
+              <div className="absolute -bottom-1 -right-1 h-8 w-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md">
                 <Camera className="h-4 w-4" />
-              </button>
+              </div>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -233,61 +245,133 @@ export default function DashboardPage() {
               />
             </div>
             <div>
-              <h1 className="text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
-              <p className="text-muted-foreground">Plan: <span className="font-bold text-primary uppercase">{planName}</span></p>
+              <h1 className="text-3xl md:text-4xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
+              <div className="flex items-center gap-2 mt-1">
+                 <Badge variant="outline" className={`h-6 px-2 gap-1 text-[10px] ${profile.status === 'approved' ? 'bg-green-600 text-white border-none' : 'bg-muted'}`}>
+                    {profile.status === 'approved' ? <ShieldCheck className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                    {profile.status === 'approved' ? 'VERIFIED' : 'PENDING'}
+                 </Badge>
+                 {planName !== 'Free' && (
+                   <Badge className="h-6 px-2 gap-1 bg-primary border-none text-white text-[10px]">
+                      <Crown className="h-3 w-3 text-secondary" />
+                      {planName}
+                   </Badge>
+                 )}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Badge variant="outline" className={`h-10 px-4 gap-2 ${profile.status === 'approved' ? 'bg-green-600 text-white border-none' : ''}`}>
-              {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-              {profile.status === 'approved' ? 'VERIFIED' : 'PENDING APPROVAL'}
-            </Badge>
-            {planName !== 'Free' && (
-               <Badge className="h-10 px-4 gap-2 bg-primary border-none text-white">
-                  <Crown className="h-4 w-4 text-secondary" />
-                  {planName} MEMBER
-               </Badge>
-            )}
-          </div>
+          
+          <Link href="/setup-profile">
+            <Button className="h-12 px-6 gap-2 font-bold shadow-md rounded-xl">
+               <Edit2 className="h-4 w-4" /> Edit Profile
+            </Button>
+          </Link>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          <Card className={`lg:col-span-2 border-none shadow-lg overflow-hidden ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="flex items-center gap-2 text-2xl font-headline">
-                <Sparkles className="h-6 w-6 text-secondary" /> Intelligent Matches
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {profile.status !== 'approved' ? (
-                <div className="py-16 text-center text-muted-foreground">
-                  <Lock className="mx-auto mb-4 h-12 w-12 opacity-20" />
-                  <p className="text-sm font-bold">Locked until verification is complete.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {loadingSuggestions ? (
-                    <div className="flex h-40 items-center justify-center animate-pulse" />
-                  ) : aiSuggestions?.suggestions.length ? (
-                    aiSuggestions.suggestions.map((suggestion) => (
-                      <div key={suggestion.profileId} className="group flex flex-col gap-5 rounded-2xl bg-white/10 p-5 backdrop-blur-md md:flex-row md:items-center hover:bg-white/20 transition-all">
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20"><Image src={`https://picsum.photos/seed/${suggestion.profileId}/200/200`} fill className="object-cover" alt="Match" /></div>
-                        <div className="flex-1"><p className="text-sm opacity-90 leading-relaxed">{suggestion.reason}</p></div>
-                        <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="sm" className="font-bold">View Profile</Button></Link>
+          <div className="lg:col-span-2 space-y-8">
+            {/* Intelligent Matches Section */}
+            <Card className={`border-none shadow-lg overflow-hidden ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="flex items-center gap-2 text-2xl font-headline">
+                  <Sparkles className="h-6 w-6 text-secondary" /> Intelligent Matches
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile.status !== 'approved' ? (
+                  <div className="py-16 text-center text-muted-foreground">
+                    <Lock className="mx-auto mb-4 h-12 w-12 opacity-20" />
+                    <p className="text-sm font-bold">Locked until verification is complete.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {loadingSuggestions ? (
+                      <div className="flex h-40 items-center justify-center animate-pulse" />
+                    ) : aiSuggestions?.suggestions.length ? (
+                      aiSuggestions.suggestions.map((suggestion) => (
+                        <div key={suggestion.profileId} className="group flex flex-col gap-5 rounded-2xl bg-white/10 p-5 backdrop-blur-md md:flex-row md:items-center hover:bg-white/20 transition-all">
+                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20"><Image src={`https://picsum.photos/seed/${suggestion.profileId}/200/200`} fill className="object-cover" alt="Match" /></div>
+                          <div className="flex-1"><p className="text-sm opacity-90 leading-relaxed">{suggestion.reason}</p></div>
+                          <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="sm" className="font-bold">View Profile</Button></Link>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 opacity-60">
+                         <Heart className="mx-auto h-8 w-8 mb-2" />
+                         <p className="text-xs">Finding matches for you...</p>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 opacity-60">
-                       <Heart className="mx-auto h-8 w-8 mb-2" />
-                       <p className="text-xs">Finding matches for you...</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions Grid for easier navigation */}
+            <section>
+               <h2 className="text-xl font-bold font-headline mb-4 text-primary px-1">Quick Actions</h2>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <Link href="/setup-profile" className="block">
+                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
+                       <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                          <Edit2 className="h-6 w-6" />
+                       </div>
+                       <span className="text-xs font-bold">Edit Details</span>
+                    </Card>
+                  </Link>
+                  <Link href={`/profiles/${user.uid}`} className="block">
+                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
+                       <div className="h-12 w-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary-foreground">
+                          <Eye className="h-6 w-6" />
+                       </div>
+                       <span className="text-xs font-bold">View Profile</span>
+                    </Card>
+                  </Link>
+                  <Link href="/membership" className="block">
+                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
+                       <div className="h-12 w-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
+                          <Crown className="h-6 w-6" />
+                       </div>
+                       <span className="text-xs font-bold">Membership</span>
+                    </Card>
+                  </Link>
+                  <Link href="/discover" className="block">
+                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm h-full flex flex-col items-center justify-center p-6 text-center gap-3 rounded-2xl">
+                       <div className="h-12 w-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600">
+                          <Search className="h-6 w-6" />
+                       </div>
+                       <span className="text-xs font-bold">Find Matches</span>
+                    </Card>
+                  </Link>
+               </div>
+            </section>
+          </div>
 
           <div className="space-y-6">
+            {/* Profile Completion Card */}
+            <Card className="border-none shadow-lg bg-white overflow-hidden">
+               <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between mb-2">
+                     <CardTitle className="text-lg font-headline text-primary">Profile Score</CardTitle>
+                     <Badge className="bg-primary/10 text-primary border-none">{completionPercentage}%</Badge>
+                  </div>
+                  <Progress value={completionPercentage} className="h-2" />
+               </CardHeader>
+               <CardContent className="pt-4">
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {completionPercentage < 100 
+                      ? "Completing your profile increases your chances of finding a compatible partner by 80%." 
+                      : "Your profile is fully complete! You're ready to find your match."}
+                  </p>
+                  {completionPercentage < 100 && (
+                    <Link href="/setup-profile">
+                      <Button variant="outline" className="w-full text-xs font-bold h-9 gap-2">
+                         Complete Now <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </Link>
+                  )}
+               </CardContent>
+            </Card>
+
             <Card className="border-none shadow-lg">
               <CardHeader><CardTitle className="text-xl font-headline text-primary">Your Membership</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -308,12 +392,22 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="border-none shadow-lg">
-                <CardHeader><CardTitle className="text-xl font-headline text-primary">Quick Links</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2">
-                    <Link href="/discover"><Button variant="ghost" className="w-full h-14 flex-col text-[11px] gap-1"><Search className="h-4 w-4" /> Discover</Button></Link>
-                    <Link href="/interests"><Button variant="ghost" className="w-full h-14 flex-col text-[11px] gap-1"><Heart className="h-4 w-4" /> Interests</Button></Link>
-                    <Link href="/messages"><Button variant="ghost" className="w-full h-14 flex-col text-[11px] gap-1"><MessageSquare className="h-4 w-4" /> Messages</Button></Link>
-                    <Link href="/setup-profile"><Button variant="ghost" className="w-full h-14 flex-col text-[11px] gap-1"><Edit2 className="h-4 w-4" /> Edit Profile</Button></Link>
+                <CardHeader><CardTitle className="text-xl font-headline text-primary">Recent Interactions</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <Link href="/interests" className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-colors">
+                        <div className="flex items-center gap-3">
+                           <div className="h-10 w-10 bg-accent rounded-full flex items-center justify-center"><Heart className="h-5 w-5 text-primary" /></div>
+                           <span className="text-sm font-medium">Interests</span>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </Link>
+                    <Link href="/messages" className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-colors">
+                        <div className="flex items-center gap-3">
+                           <div className="h-10 w-10 bg-accent rounded-full flex items-center justify-center"><MessageSquare className="h-5 w-5 text-primary" /></div>
+                           <span className="text-sm font-medium">Messages</span>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </Link>
                 </CardContent>
             </Card>
           </div>
