@@ -16,11 +16,36 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
 const PLANS = [
-  { name: "Registration", price: 200, duration: "One-time", features: ["Profile Verification", "Basic Search"] },
-  { name: "Silver", price: 1500, duration: "3 Months", features: ["Advanced Filters", "Send Interests"] },
-  { name: "Gold", price: 2500, duration: "6 Months", features: ["See Contact Details", "Priority Listing"] },
-  { name: "Premium", price: 3000, duration: "12 Months", features: ["Relationship Manager", "Profile Spotlight"] },
-  { name: "Prime", price: 4000, duration: "Unlimited", features: ["VIP Matchmaking", "Privacy Controls"] },
+  { 
+    name: "Free", 
+    price: 0, 
+    duration: "Lifetime", 
+    features: ["Create profile", "Browse profiles", "Receive interests", "Limited daily views"] 
+  },
+  { 
+    name: "Basic", 
+    price: 99, 
+    duration: "Monthly", 
+    features: ["Send 10 interests/mo", "Basic profile visibility", "View limited contact requests"] 
+  },
+  { 
+    name: "Silver", 
+    price: 199, 
+    duration: "Monthly", 
+    features: ["Send 30 interests/mo", "Chat with matches", "View profile visitors", "Increased visibility"] 
+  },
+  { 
+    name: "Gold", 
+    price: 299, 
+    duration: "Monthly", 
+    features: ["Send 75 interests/mo", "Unlimited chat", "Priority ranking", "Advanced filters"] 
+  },
+  { 
+    name: "Premium", 
+    price: 499, 
+    duration: "Monthly", 
+    features: ["Unlimited interests", "Unlimited chat", "Top search placement", "Premium badge", "Priority review"] 
+  },
 ];
 
 export default function MembershipPage() {
@@ -40,6 +65,10 @@ export default function MembershipPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSelectPlan = (name: string, price: number) => {
+    if (price === 0) {
+        toast({ title: "Free Plan", description: "This is your default plan. No payment needed." });
+        return;
+    }
     setSelectedPlan({ name, price });
   };
 
@@ -62,7 +91,7 @@ export default function MembershipPage() {
     setIsSubmitting(true);
     const paymentData = {
       userId: user.uid,
-      userName: profile?.fullName || profile?.name || user.email,
+      userName: profile?.fullName || user.email,
       plan: selectedPlan.name,
       amount: selectedPlan.price,
       transactionId: transactionId,
@@ -100,9 +129,9 @@ export default function MembershipPage() {
       <main className="container mx-auto px-4 py-12 lg:px-8">
         <header className="mb-12 text-center">
           <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/20 text-primary">MEMBERSHIP UPGRADE</Badge>
-          <h1 className="mb-4 text-4xl font-bold font-headline text-primary">Find Your Match Faster</h1>
+          <h1 className="mb-4 text-4xl font-bold font-headline text-primary">Find Your Life Partner</h1>
           <p className="mx-auto max-w-2xl text-muted-foreground text-lg">
-            Choose from our specialized plans to unlock advanced features and start your matrimonial journey today.
+            Registration is free! Upgrade to access premium features like direct chat and contact details.
           </p>
         </header>
 
@@ -111,22 +140,25 @@ export default function MembershipPage() {
           <div className="lg:col-span-2 space-y-8">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
-              1. Select Your Plan
+              1. Choose a Plan
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {PLANS.map((plan) => (
                 <Card 
                   key={plan.name}
-                  className={`relative cursor-pointer transition-all border-2 h-full flex flex-col ${selectedPlan?.name === plan.name ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-transparent hover:border-muted shadow-sm'}`}
+                  className={`relative cursor-pointer transition-all border-2 h-full flex flex-col ${selectedPlan?.name === plan.name ? 'border-primary bg-primary/5 ring-1 ring-primary' : (profile?.membership?.plan === plan.name ? 'border-green-500 bg-green-50/50' : 'border-transparent hover:border-muted shadow-sm')}`}
                   onClick={() => handleSelectPlan(plan.name, plan.price)}
                 >
                   <CardHeader className="pb-2">
-                    <div className="text-xs font-bold text-primary mb-1 uppercase">{plan.duration}</div>
+                    <div className="flex justify-between items-start">
+                        <div className="text-[10px] font-bold text-primary mb-1 uppercase">{plan.duration}</div>
+                        {profile?.membership?.plan === plan.name && <Badge className="bg-green-600 h-5 text-[9px]">Active</Badge>}
+                    </div>
                     <CardTitle className="text-xl font-headline">{plan.name}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4 flex-1">
                     <div className="text-2xl font-bold">₹{plan.price.toLocaleString()}</div>
-                    <ul className="space-y-2 text-xs text-muted-foreground">
+                    <ul className="space-y-2 text-[11px] text-muted-foreground">
                       {plan.features.map(f => (
                         <li key={f} className="flex items-center gap-2"><Check className="h-3 w-3 text-secondary shrink-0" /> {f}</li>
                       ))}
@@ -139,7 +171,7 @@ export default function MembershipPage() {
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold flex items-center gap-2 text-primary">
                 <AlertCircle className="h-5 w-5" />
-                2. Payment Details
+                2. Secure Payment
               </h3>
               <div className="space-y-4 rounded-xl bg-muted/30 p-5 border border-border">
                 <div className="flex justify-between items-center group">
@@ -152,16 +184,16 @@ export default function MembershipPage() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center group">
-                  <span className="text-sm text-muted-foreground">Bank A/C Name</span>
-                  <span className="font-bold text-right">Al Batul Matrimony Services</span>
+                  <span className="text-sm text-muted-foreground">Account Holder</span>
+                  <span className="font-bold text-right">Al Batul Matrimony</span>
                 </div>
                 <div className="flex justify-between items-center group">
-                  <span className="text-sm text-muted-foreground">Bank A/C Number</span>
-                  <span className="font-bold font-mono">1234 5678 9012 3456</span>
+                  <span className="text-sm text-muted-foreground">Account Number</span>
+                  <span className="font-bold font-mono">1122 3344 5566 7788</span>
                 </div>
                 <div className="flex justify-between items-center group">
-                  <span className="text-sm text-muted-foreground">IFSC Code</span>
-                  <span className="font-bold">ALB0000001</span>
+                  <span className="text-sm text-muted-foreground">IFSC</span>
+                  <span className="font-bold">BANK0001234</span>
                 </div>
               </div>
             </div>
@@ -171,24 +203,24 @@ export default function MembershipPage() {
           <div className="space-y-6">
              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5 text-primary" />
-              3. Verify Payment
+              3. Payment Submission
             </h2>
             <Card className="border-none shadow-xl bg-card overflow-hidden">
               <CardHeader className="bg-primary/5">
-                <CardTitle className="text-lg">Proof Submission</CardTitle>
+                <CardTitle className="text-lg">Manual Verification</CardTitle>
                 <CardDescription>
                   {selectedPlan ? (
                     <div className="mt-1">
-                      Selected: <span className="font-bold text-primary">{selectedPlan.name} (₹{selectedPlan.price.toLocaleString()})</span>
+                      Upgrading to: <span className="font-bold text-primary">{selectedPlan.name} (₹{selectedPlan.price})</span>
                     </div>
-                  ) : "Please select a plan to proceed."}
+                  ) : "Select a plan to submit payment proof."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold">Transaction ID / UTR</label>
                   <Input 
-                    placeholder="Enter the 12-digit UTR number" 
+                    placeholder="Enter 12-digit UTR" 
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
                     className="h-12 font-mono"
@@ -196,16 +228,15 @@ export default function MembershipPage() {
                   />
                 </div>
                 
-                <div className="rounded-xl border-2 border-dashed p-8 text-center transition-colors hover:border-primary/50 bg-muted/5">
-                  <Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-                  <p className="text-sm font-bold text-muted-foreground">Upload Screenshot</p>
-                  <p className="text-[10px] text-muted-foreground">JPG/PNG only</p>
+                <div className="rounded-xl border-2 border-dashed p-6 text-center transition-colors hover:border-primary/50 bg-muted/5">
+                  <Upload className="mx-auto mb-2 h-6 w-6 text-muted-foreground/30" />
+                  <p className="text-xs font-bold text-muted-foreground">Attach Payment Screenshot</p>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-xl bg-accent/30 p-4 text-primary text-xs font-medium">
+                <div className="flex items-start gap-3 rounded-xl bg-accent/30 p-4 text-primary text-[11px] font-medium">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0" />
                   <p className="leading-relaxed">
-                    Our verification team will audit your UTR. Access is typically granted within 12-24 hours.
+                    Once submitted, our finance team will verify the UTR. Your plan will be updated within 24 hours.
                   </p>
                 </div>
               </CardContent>
@@ -215,7 +246,7 @@ export default function MembershipPage() {
                   onClick={handleSubmitProof} 
                   disabled={isSubmitting || !selectedPlan || !transactionId}
                 >
-                  {isSubmitting ? "Submitting..." : "Submit Proof"}
+                  {isSubmitting ? "Processing..." : "Submit for Approval"}
                 </Button>
               </CardFooter>
             </Card>

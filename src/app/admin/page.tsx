@@ -22,12 +22,16 @@ import {
   Eye,
   FileText,
   UserCircle,
-  XCircle
+  XCircle,
+  MoreVertical,
+  ArrowUpCircle,
+  ArrowDownCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
 import { 
   collection, 
@@ -45,6 +49,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+
+const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
 
 export default function AdminDashboard() {
   const db = useFirestore();
@@ -81,11 +87,7 @@ export default function AdminDashboard() {
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: paymentRef.path, operation: "update" })));
 
     const expiryDate = new Date();
-    if (plan === "Silver") expiryDate.setMonth(expiryDate.getMonth() + 3);
-    else if (plan === "Gold") expiryDate.setMonth(expiryDate.getMonth() + 6);
-    else if (plan === "Premium") expiryDate.setMonth(expiryDate.getMonth() + 12);
-    else if (plan === "Prime") expiryDate.setFullYear(expiryDate.getFullYear() + 10);
-    else expiryDate.setMonth(expiryDate.getMonth() + 1);
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
 
     updateDoc(userRef, {
       "membership.plan": plan,
@@ -110,8 +112,22 @@ export default function AdminDashboard() {
     if (!db) return;
     const userRef = doc(db, "users", userId);
     updateDoc(userRef, updates).then(() => {
-      toast({ title: "Status Updated" });
+      toast({ title: "Updated successfully" });
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: userRef.path, operation: "update" })));
+  };
+
+  const handleUpdateMembership = (userId: string, plan: string) => {
+    if (!db) return;
+    const userRef = doc(db, "users", userId);
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+    updateDoc(userRef, {
+      "membership.plan": plan,
+      "membership.expiresAt": expiryDate.toISOString(),
+    }).then(() => {
+      toast({ title: "Membership Updated", description: `User is now on ${plan} plan.` });
+    });
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -142,14 +158,14 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8 lg:px-8">
         <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold font-headline text-primary">Admin Control Center</h1>
-            <p className="text-muted-foreground text-sm">Review identity documents, verify payments, and manage members.</p>
+            <h1 className="text-3xl font-bold font-headline text-primary">Administration</h1>
+            <p className="text-muted-foreground text-sm">Manage members, verify payments, and control system settings.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Search members..." 
+                placeholder="Search by name or city..." 
                 className="w-64 pl-10 h-10" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -158,13 +174,13 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <Tabs defaultValue="approvals" className="w-full">
+        <Tabs defaultValue="payments" className="w-full">
           <TabsList className="mb-6 h-auto p-1 bg-muted/50">
-            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
-              <UserCheck className="h-4 w-4" /> Profile Approvals
-            </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2 px-4 py-2">
               <CreditCard className="h-4 w-4" /> Payments
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
+              <UserCheck className="h-4 w-4" /> Verifications
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-2 px-4 py-2">
               <Users className="h-4 w-4" /> All Members
@@ -174,93 +190,15 @@ export default function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="approvals">
-            <Card className="border-none shadow-sm">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Identity Docs</TableHead>
-                    <TableHead>Location & Details</TableHead>
-                    <TableHead className="text-right">Review Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <FileText className="h-3 w-3" /> Gov ID
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-3xl">
-                              <DialogHeader><DialogTitle>Government ID Review: {user.fullName}</DialogTitle></DialogHeader>
-                              <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                                {user.idPhotoUrl ? (
-                                  <Image src={user.idPhotoUrl} alt="ID Scan" fill className="object-contain" />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">No ID Image Uploaded</div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <UserCircle className="h-3 w-3" /> Selfie
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-md">
-                              <DialogHeader><DialogTitle>Verification Selfie: {user.fullName}</DialogTitle></DialogHeader>
-                              <div className="relative aspect-square w-full overflow-hidden rounded-lg border">
-                                {user.selfiePhotoUrl ? (
-                                  <Image src={user.selfiePhotoUrl} alt="Selfie" fill className="object-contain" />
-                                ) : (
-                                  <div className="flex h-full items-center justify-center bg-muted text-muted-foreground">No Selfie Uploaded</div>
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {user.age}Y • {user.gender} • {user.city}, {user.country}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>
-                            <Check className="h-3 w-3 mr-1" /> Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-destructive border-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>
-                            <XCircle className="h-3 w-3 mr-1" /> Reject
-                          </Button>
-                          <Link href={`/profiles/${user.id}`}>
-                            <Button size="sm" variant="ghost" className="h-8">View Profile</Button>
-                          </Link>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {allUsers?.filter(u => u.status === 'pending').length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No pending profile verifications.</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="payments">
             <Card className="border-none shadow-sm overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Plan & Amount</TableHead>
+                    <TableHead>Requested Plan</TableHead>
                     <TableHead>UTR / Trans ID</TableHead>
+                    <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
@@ -269,13 +207,9 @@ export default function AdminDashboard() {
                   {payments?.map((payment: any) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-semibold text-sm">{payment.userName}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs">{payment.plan}</span>
-                          <span className="text-xs text-muted-foreground">₹{payment.amount?.toLocaleString()}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{payment.transactionId}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{payment.plan}</Badge></TableCell>
+                      <TableCell className="font-mono text-[11px]">{payment.transactionId}</TableCell>
+                      <TableCell className="text-sm font-bold">₹{payment.amount}</TableCell>
                       <TableCell>
                         <Badge variant={payment.status === 'approved' ? 'default' : payment.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
                           {payment.status}
@@ -285,7 +219,7 @@ export default function AdminDashboard() {
                         {payment.status === 'pending' && (
                           <div className="flex justify-end gap-2">
                              <Button size="sm" className="bg-green-600 h-8" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
-                               Verify
+                               Approve
                              </Button>
                              <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => handleRejectPayment(payment.id)}>
                                Reject
@@ -296,8 +230,53 @@ export default function AdminDashboard() {
                     </TableRow>
                   ))}
                   {!payments?.length && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No payment history found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground">No pending payments.</TableCell></TableRow>
                   )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="approvals">
+            <Card className="border-none shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Candidate</TableHead>
+                    <TableHead>Identity Docs</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8">ID Scan</Button></DialogTrigger>
+                            <DialogContent className="max-w-3xl">
+                                <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" width={800} height={600} className="rounded-lg object-contain" />
+                            </DialogContent>
+                          </Dialog>
+                          <Dialog>
+                            <DialogTrigger asChild><Button variant="outline" size="sm" className="h-8">Selfie</Button></DialogTrigger>
+                            <DialogContent className="max-w-md">
+                                <Image src={user.selfiePhotoUrl || "https://picsum.photos/seed/selfie/600/600"} alt="Selfie" width={600} height={600} className="rounded-lg object-contain" />
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">{user.city}, {user.country}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>Approve</Button>
+                          <Button size="sm" variant="outline" className="text-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>Reject</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </Card>
@@ -309,9 +288,9 @@ export default function AdminDashboard() {
                 <TableHeader className="bg-muted/30">
                   <TableRow>
                     <TableHead>Member</TableHead>
-                    <TableHead>Identity Status</TableHead>
-                    <TableHead>Subscription</TableHead>
-                    <TableHead className="text-right">Controls</TableHead>
+                    <TableHead>Current Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Administrative Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -324,35 +303,45 @@ export default function AdminDashboard() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 text-[10px] gap-2">
+                              {user.membership?.plan || 'Free'} <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {PLANS_LIST.map(p => (
+                              <DropdownMenuItem key={p} onClick={() => handleUpdateMembership(user.id, p)}>
+                                Set to {p}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4 gap-1">
-                            {user.status === 'approved' && <ShieldCheck className="h-2 w-2" />}
+                          <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4">
                             {user.status}
                           </Badge>
                           {user.isSuspended && <Badge variant="outline" className="text-orange-600 text-[9px] h-4">Suspended</Badge>}
                           {user.isBanned && <Badge variant="destructive" className="text-[9px] h-4">Banned</Badge>}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">{user.membership?.plan || 'Free'}</Badge>
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8" 
                             onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}
-                            title={user.isSuspended ? "Unlock Account" : "Suspend Account"}
                           >
                             {user.isSuspended ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-orange-600" />}
                           </Button>
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8"
                             onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}
-                            title={user.isBanned ? "Unban Account" : "Ban Account"}
                           >
                             <Ban className={`h-4 w-4 ${user.isBanned ? "text-primary" : "text-destructive"}`} />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteUser(user.id)} title="Delete Account Permanently">
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteUser(user.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -371,31 +360,16 @@ export default function AdminDashboard() {
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Maintenance Mode</Label>
-                    <Switch 
-                      checked={settings?.maintenanceMode || false} 
-                      onCheckedChange={(val) => handleUpdateSettings({ maintenanceMode: val })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Open Registrations</Label>
-                    <Switch 
-                      checked={settings?.registrationEnabled !== false} 
-                      onCheckedChange={(val) => handleUpdateSettings({ registrationEnabled: val })}
-                    />
+                    <Switch checked={settings?.maintenanceMode || false} onCheckedChange={(val) => handleUpdateSettings({ maintenanceMode: val })} />
                   </div>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
-                <CardHeader><CardTitle className="text-lg">Financial Configuration</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Payment Info</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs">Global UPI ID</Label>
-                    <Input 
-                      placeholder="e.g. albatul@upi" 
-                      defaultValue={settings?.upiId} 
-                      className="h-10"
-                      onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })}
-                    />
+                    <Label className="text-xs">UPI ID for Members</Label>
+                    <Input defaultValue={settings?.upiId} className="h-10" onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })} />
                   </div>
                 </CardContent>
               </Card>

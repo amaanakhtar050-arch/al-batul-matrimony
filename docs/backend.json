@@ -43,7 +43,7 @@
         "membership": {
           "type": "object",
           "properties": {
-            "plan": { "type": "string", "enum": ["Free", "Registration", "Silver", "Gold", "Premium", "Prime"] },
+            "plan": { "type": "string", "enum": ["Free", "Basic", "Silver", "Gold", "Premium"] },
             "expiresAt": { "type": "string", "format": "date-time" }
           }
         },
@@ -69,7 +69,7 @@
       "properties": {
         "userId": { "type": "string" },
         "userName": { "type": "string" },
-        "plan": { "type": "string", "enum": ["Registration", "Silver", "Gold", "Premium", "Prime"] },
+        "plan": { "type": "string", "enum": ["Basic", "Silver", "Gold", "Premium"] },
         "amount": { "type": "number" },
         "transactionId": { "type": "string" },
         "screenshotUrl": { "type": "string" },
