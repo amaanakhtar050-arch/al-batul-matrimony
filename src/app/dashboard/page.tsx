@@ -5,7 +5,25 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Activity, ShieldCheck, Heart, ArrowRight, UserPlus, Edit2, Clock, Crown, ShieldAlert, Lock, UserCheck, XCircle, AlertCircle, Zap } from "lucide-react";
+import { 
+  Sparkles, 
+  Activity, 
+  ShieldCheck, 
+  Heart, 
+  ArrowRight, 
+  UserPlus, 
+  Edit2, 
+  Clock, 
+  Crown, 
+  ShieldAlert, 
+  Lock, 
+  UserCheck, 
+  XCircle, 
+  AlertCircle, 
+  Zap,
+  Search,
+  MessageSquare
+} from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
