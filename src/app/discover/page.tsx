@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -97,8 +96,9 @@ export default function DiscoverPage() {
     );
   }
 
-  // ACCESS GATING: Pending or restricted profiles cannot search
-  if (!profile || profile.status !== 'approved') {
+  // ACCESS GATING: Pending or restricted profiles cannot search, unless they are admins
+  const isAdmin = profile?.role === 'admin';
+  if (!profile || (profile.status !== 'approved' && !isAdmin)) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -146,6 +146,7 @@ export default function DiscoverPage() {
               Discover Matches <ShieldCheck className="h-6 w-6 text-primary/40" />
             </h1>
             <p className="text-muted-foreground">Browse verified profiles looking for a life partner.</p>
+            {isAdmin && <Badge className="mt-2 bg-primary text-white border-none font-bold">ADMIN TESTING MODE ACTIVE</Badge>}
           </div>
           <div className="flex items-center gap-2">
             <Button 
@@ -279,7 +280,7 @@ export default function DiscoverPage() {
                   education: profile.education,
                   occupation: profile.occupation,
                   maritalStatus: profile.maritalStatus || "Single",
-                  imageUrl: profile.photoUrl || `https://picsum.photos/seed/${profile.id}/600/800`,
+                  imageUrl: profile.photoUrl || "",
                   imageHint: "Muslim professional",
                   isVerified: profile.status === 'approved'
                 }} 

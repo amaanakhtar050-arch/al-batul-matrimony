@@ -218,7 +218,9 @@ export default function MessagesPage() {
     );
   }
 
-  const canChat = ["Silver", "Gold", "Premium"].includes(profile?.membership?.plan || "Free");
+  // Admin Testing Mode: Bypass chat restrictions for admins
+  const isAdmin = profile?.role === 'admin';
+  const canChat = isAdmin || ["Silver", "Gold", "Premium"].includes(profile?.membership?.plan || "Free");
 
   const filteredMatches = matches.filter(m => {
     const partnerName = m.fromUserId === user?.uid ? m.toUserName : m.fromUserName;

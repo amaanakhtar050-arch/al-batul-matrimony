@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -7,27 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { 
   Heart, 
-  MapPin, 
-  GraduationCap, 
-  Briefcase, 
   ShieldCheck, 
-  Flag, 
-  Ban, 
   MessageSquare,
   User,
-  DollarSign,
-  Ruler,
-  Scale,
-  Languages,
   Lock,
   Phone,
   MessageCircle,
   Crown,
   CheckCircle2,
   Clock,
-  X,
   Trash2,
-  Users,
   Edit2
 } from "lucide-react";
 import Image from "next/image";
@@ -35,11 +23,32 @@ import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc, getDocs } from "firebase/firestore";
-import { format } from "date-fns";
+import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc } from "firebase/firestore";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
+
+/**
+ * A helper component to display a user's avatar fetching the latest photo from Firestore.
+ */
+function UserAvatar({ userId, className }: { userId: string, className?: string }) {
+  const db = useFirestore();
+  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const { data: profile } = useDoc(userRef);
+  
+  return (
+    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+      {profile?.photoUrl ? (
+        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+          <User className="h-2/3 w-2/3" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProfileDetailPage() {
   const { id } = useParams();
@@ -91,7 +100,8 @@ export default function ProfileDetailPage() {
       return;
     }
 
-    if (viewerProfile?.status !== 'approved') {
+    const isAdmin = viewerProfile?.role === 'admin';
+    if (!isAdmin && viewerProfile?.status !== 'approved') {
       toast({ title: "Verification Required", description: "Your profile must be approved to send interests.", variant: "destructive" });
       return;
     }
@@ -157,12 +167,14 @@ export default function ProfileDetailPage() {
   );
 
   const isSelf = currentUser?.uid === profile.id;
+  const isAdmin = viewerProfile?.role === 'admin';
   const currentPlan = viewerProfile?.membership?.plan || "Free";
-  const canInteract = viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended;
+  const canInteract = isAdmin || (viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended);
   const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
   
-  const canChat = ["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched;
-  const hasContactAccess = ["Gold", "Premium"].includes(currentPlan);
+  // Admin Testing Mode: Bypass membership and match restrictions for contact and chat
+  const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
+  const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
   return (
     <div className="min-h-screen bg-background">
@@ -232,7 +244,7 @@ export default function ProfileDetailPage() {
                         </Button>
                       )}
                       
-                      {(isMatched || canChat) && (
+                      {(isMatched || canChat || isAdmin) && (
                         <Link href={canChat ? "/messages" : "/membership"} className={!canChat ? "opacity-70" : ""}>
                           <Button variant="outline" size="icon" className="h-14 w-14">
                             {canChat ? <MessageSquare className="h-6 w-6" /> : <Lock className="h-6 w-6 text-muted-foreground" />}
@@ -240,13 +252,13 @@ export default function ProfileDetailPage() {
                         </Link>
                       )}
                     </div>
-                    {isMatched && !canChat && (
+                    {isMatched && !canChat && !isAdmin && (
                         <div className="flex items-start gap-2 p-3 bg-orange-50 rounded-xl text-orange-800 text-[10px] leading-relaxed">
                           <Crown className="h-3 w-3 shrink-0 mt-0.5" />
                           <p>You've matched! To start the conversation, please upgrade to a <strong>Silver Plan</strong> or higher.</p>
                         </div>
                     )}
-                    {isMatched && canChat && (
+                    {(isMatched || isAdmin) && canChat && (
                       <Link href="/messages" className="w-full">
                         <Button className="w-full h-11 gap-2 font-bold shadow-md" variant="secondary">
                            <MessageSquare className="h-4 w-4" /> Start Conversation Now
@@ -260,6 +272,9 @@ export default function ProfileDetailPage() {
           </div>
 
           <div className="lg:col-span-3">
+            {isAdmin && (
+              <Badge className="mb-4 bg-primary text-white border-none font-bold">ADMIN TESTING MODE ACTIVE</Badge>
+            )}
             <div className="mb-8 flex flex-wrap items-center gap-4">
               <h1 className="text-5xl font-bold font-headline">{profile.fullName}, {profile.age}</h1>
               <Badge variant="outline" className="h-8 border-primary/20 bg-primary/5 px-4 text-sm text-primary">{profile.sect}</Badge>
