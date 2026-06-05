@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2 } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -9,11 +9,32 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
-import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc, where, or, and } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
+
+/**
+ * A helper component to display a user's avatar fetching the latest photo from Firestore.
+ */
+function UserAvatar({ userId, className }: { userId: string, className?: string }) {
+  const db = useFirestore();
+  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const { data: profile } = useDoc(userRef);
+  
+  return (
+    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+      {profile?.photoUrl ? (
+        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+          <User className="h-2/3 w-2/3" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Navbar() {
   const { user, loading } = useUser();
@@ -30,6 +51,7 @@ export function Navbar() {
 
   const { data: profile } = useDoc(profileRef);
 
+  // System Notifications
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -40,7 +62,26 @@ export function Navbar() {
   }, [db, user]);
 
   const { data: notifications } = useCollection(notificationsQuery);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  // Real-time Messages (Interests/Matches)
+  const matchesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "interests"),
+      and(
+        where("status", "==", "accepted"),
+        or(
+          where("fromUserId", "==", user.uid),
+          where("toUserId", "==", user.uid)
+        )
+      ),
+      orderBy("updatedAt", "desc"),
+      limit(10)
+    );
+  }, [db, user]);
+
+  const { data: recentMatches } = useCollection(matchesQuery);
 
   const isAdmin = profile?.role === 'admin';
   const hasProfile = !!profile && profile.isProfileComplete;
@@ -128,16 +169,19 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
+              {/* Order: Notifications | Messages | Profile | Logout */}
+              
+              {/* Notifications Bell */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
+                  <Button variant="ghost" size="icon" className="relative h-9 w-9">
                     <Bell className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute right-2 top-2 h-4 w-4 flex items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm">
-                        {unreadCount}
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm">
+                        {unreadNotificationsCount}
                       </span>
                     )}
                   </Button>
@@ -187,16 +231,76 @@ export function Navbar() {
                 </PopoverContent>
               </Popover>
 
+              {/* Messages / Chat Hub */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                    <MessageSquare className="h-5 w-5" />
+                    {/* Simplified unread badge for messages if there are active matches */}
+                    {recentMatches.length > 0 && recentMatches.some(m => !m.lastMessageRead && m.lastMessageSenderId !== user.uid) && (
+                      <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground shadow-sm">
+                        •
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0 shadow-2xl border-primary/10" align="end">
+                  <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+                    <h3 className="font-bold text-sm">Messages</h3>
+                    <Link href="/messages" className="text-[10px] font-bold text-primary uppercase hover:underline">Open Chat</Link>
+                  </div>
+                  <div className="max-h-[400px] overflow-auto">
+                    {recentMatches.length > 0 ? (
+                      recentMatches.map((match: any) => {
+                        const partnerId = match.fromUserId === user?.uid ? match.toUserId : match.fromUserId;
+                        const partnerName = match.fromUserId === user?.uid ? match.toUserName : match.fromUserName;
+                        
+                        return (
+                          <div 
+                            key={match.id} 
+                            className="p-4 border-b flex items-center gap-3 hover:bg-muted/20 cursor-pointer transition-colors"
+                            onClick={() => router.push('/messages')}
+                          >
+                            <UserAvatar userId={partnerId} className="h-10 w-10 shrink-0 border border-primary/10" />
+                            <div className="flex-1 overflow-hidden">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <p className="font-bold text-xs truncate">{partnerName}</p>
+                                {match.updatedAt && (
+                                  <span className="text-[9px] text-muted-foreground">
+                                    {formatDistanceToNow(match.updatedAt.toDate(), { addSuffix: false })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {match.lastMessage || "Start a conversation..."}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-12 text-center flex flex-col items-center gap-2">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
+                        <p className="text-muted-foreground text-[11px] italic">No active conversations.</p>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Profile Avatar */}
               <Link href="/dashboard">
-                <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'} className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full p-0 border border-primary/20 bg-muted">
+                <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full p-0 border border-primary/20 bg-muted">
                    {profile?.photoUrl ? (
-                     <Image src={profile.photoUrl} alt="Avatar" width={40} height={40} className="h-full w-full object-cover" />
+                     <Image src={profile.photoUrl} alt="Avatar" width={36} height={36} className="h-full w-full object-cover" />
                    ) : (
                      <User className="h-5 w-5 text-muted-foreground" />
                    )}
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" onClick={handleLogout} title="Log Out">
+
+              {/* Logout Button */}
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleLogout} title="Log Out">
                 <LogOut className="h-5 w-5" />
               </Button>
             </>
@@ -249,7 +353,8 @@ export function Navbar() {
                   );
                 })}
                 {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
-                <Link href="/notifications" className="text-lg font-medium">Notifications {unreadCount > 0 && `(${unreadCount})`}</Link>
+                <Link href="/notifications" className="text-lg font-medium">Notifications {unreadNotificationsCount > 0 && `(${unreadNotificationsCount})`}</Link>
+                <Link href="/messages" className="text-lg font-medium">Messages</Link>
                 <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>
                 <Link href="/membership" className="text-lg font-medium">Membership</Link>
                 {user && (
