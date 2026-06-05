@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Check, X, User, MessageSquare, Users, Trash2 } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy, deleteDoc, or, and } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy, deleteDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,28 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+/**
+ * A helper component to display a user's avatar fetching the latest photo from Firestore.
+ */
+function UserAvatar({ userId, className }: { userId: string, className?: string }) {
+  const db = useFirestore();
+  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const { data: profile } = useDoc(userRef);
+  
+  return (
+    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+      {profile?.photoUrl ? (
+        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+          <User className="h-2/3 w-2/3" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InterestsPage() {
   const { user, loading: authLoading } = useUser();
@@ -134,14 +156,7 @@ export default function InterestsPage() {
                 receivedInterests.filter(i => i.status !== 'accepted').map((interest: any) => (
                   <Card key={interest.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center gap-4 pb-4">
-                      <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted border-2 border-primary/10">
-                        <Image 
-                          src={`https://picsum.photos/seed/${interest.fromUserId}/200/200`} 
-                          alt="User" 
-                          fill 
-                          className="object-cover" 
-                        />
-                      </div>
+                      <UserAvatar userId={interest.fromUserId} className="h-16 w-16 border-2 border-primary/10" />
                       <div className="flex-1">
                         <CardTitle className="text-lg font-bold truncate">{interest.fromUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs">
@@ -190,14 +205,7 @@ export default function InterestsPage() {
                   return (
                     <Card key={interest.id} className="overflow-hidden border-none shadow-sm bg-accent/10 border-l-4 border-l-primary">
                       <CardHeader className="flex flex-row items-center gap-4 pb-4">
-                        <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted border-2 border-primary/20">
-                          <Image 
-                            src={`https://picsum.photos/seed/${partnerId}/200/200`} 
-                            alt="User" 
-                            fill 
-                            className="object-cover" 
-                          />
-                        </div>
+                        <UserAvatar userId={partnerId} className="h-16 w-16 border-2 border-primary/20" />
                         <div className="flex-1">
                           <CardTitle className="text-lg font-bold truncate">{partnerName}</CardTitle>
                           <CardDescription className="text-xs uppercase tracking-tighter text-primary font-bold">
@@ -239,14 +247,7 @@ export default function InterestsPage() {
                 sentInterests.map((interest: any) => (
                   <Card key={interest.id} className="overflow-hidden border-none shadow-sm opacity-90">
                     <CardHeader className="flex flex-row items-center gap-4 pb-4">
-                       <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted border-2 border-primary/10">
-                        <Image 
-                          src={`https://picsum.photos/seed/${interest.toUserId}/200/200`} 
-                          alt="User" 
-                          fill 
-                          className="object-cover" 
-                        />
-                      </div>
+                      <UserAvatar userId={interest.toUserId} className="h-16 w-16 border-2 border-primary/10" />
                       <div className="flex-1">
                         <CardTitle className="text-lg font-bold truncate">{interest.toUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs uppercase tracking-wider">

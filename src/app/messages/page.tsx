@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -17,7 +16,8 @@ import {
   Crown,
   ChevronLeft,
   Search,
-  AlertCircle
+  AlertCircle,
+  User
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { 
@@ -39,6 +39,28 @@ import Link from "next/link";
 import { format, isToday, isYesterday } from "date-fns";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
+
+/**
+ * A helper component to display a user's avatar fetching the latest photo from Firestore.
+ */
+function UserAvatar({ userId, className }: { userId: string, className?: string }) {
+  const db = useFirestore();
+  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const { data: profile } = useDoc(userRef);
+  
+  return (
+    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+      {profile?.photoUrl ? (
+        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+          <User className="h-2/3 w-2/3" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useUser();
@@ -244,14 +266,7 @@ export default function MessagesPage() {
                             : "hover:bg-accent/40"
                         }`}
                       >
-                         <div className="relative h-12 w-12 overflow-hidden rounded-full shrink-0 border-2 border-white/20 shadow-sm">
-                            <Image 
-                              src={`https://picsum.photos/seed/${partnerId}/200/200`} 
-                              alt="Partner" 
-                              fill 
-                              className="object-cover" 
-                            />
-                         </div>
+                         <UserAvatar userId={partnerId} className="h-12 w-12 shrink-0 border-2 border-white/20 shadow-sm" />
                          <div className="flex-1 overflow-hidden">
                             <div className="flex items-center justify-between">
                               <p className="font-bold truncate text-sm">{partnerName}</p>
@@ -288,14 +303,7 @@ export default function MessagesPage() {
                      <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={() => setActiveInterest(null)}>
                        <ChevronLeft className="h-5 w-5" />
                      </Button>
-                     <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-primary/10">
-                        <Image 
-                          src={`https://picsum.photos/seed/${activeInterest.fromUserId === user?.uid ? activeInterest.toUserId : activeInterest.fromUserId}/100/100`} 
-                          alt="Avatar" 
-                          fill 
-                          className="object-cover" 
-                        />
-                     </div>
+                     <UserAvatar userId={activeInterest.fromUserId === user?.uid ? activeInterest.toUserId : activeInterest.fromUserId} className="h-10 w-10 border-2 border-primary/10" />
                      <div>
                         <p className="font-bold text-sm leading-none">
                           {activeInterest.fromUserId === user?.uid ? activeInterest.toUserName : activeInterest.fromUserName}

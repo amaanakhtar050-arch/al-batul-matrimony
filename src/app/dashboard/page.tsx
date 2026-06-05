@@ -39,6 +39,28 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
+
+/**
+ * A helper component to display a user's avatar fetching the latest photo from Firestore.
+ */
+function UserAvatar({ userId, className }: { userId: string, className?: string }) {
+  const db = useFirestore();
+  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const { data: profile } = useDoc(userRef);
+  
+  return (
+    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+      {profile?.photoUrl ? (
+        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
+          <User className="h-2/3 w-2/3" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useUser();
@@ -290,7 +312,7 @@ export default function DashboardPage() {
                     ) : aiSuggestions?.suggestions.length ? (
                       aiSuggestions.suggestions.map((suggestion) => (
                         <div key={suggestion.profileId} className="group flex flex-col gap-5 rounded-2xl bg-white/10 p-5 backdrop-blur-md md:flex-row md:items-center hover:bg-white/20 transition-all">
-                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20"><Image src={`https://picsum.photos/seed/${suggestion.profileId}/200/200`} fill className="object-cover" alt="Match" /></div>
+                          <UserAvatar userId={suggestion.profileId} className="h-16 w-16 shrink-0 rounded-2xl bg-white/20" />
                           <div className="flex-1"><p className="text-sm opacity-90 leading-relaxed">{suggestion.reason}</p></div>
                           <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="sm" className="font-bold">View Profile</Button></Link>
                         </div>
