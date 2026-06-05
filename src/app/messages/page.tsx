@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -144,10 +145,18 @@ export default function MessagesPage() {
     addDoc(msgsRef, messageData)
       .then(() => {
         setMessageText("");
-        // Update parent interest for sorting and preview
         updateDoc(interestRef, {
           lastMessage: messageText.trim(),
           updatedAt: serverTimestamp()
+        });
+
+        // Notify Recipient
+        const partnerId = activeInterest.fromUserId === user.uid ? activeInterest.toUserId : activeInterest.fromUserId;
+        const notifyRef = collection(db, 'users', partnerId, 'notifications');
+        addDoc(notifyRef, {
+          text: `New message from ${profile?.fullName || "a member"}.`,
+          read: false,
+          createdAt: serverTimestamp()
         });
       })
       .catch(async (e) => {
@@ -218,7 +227,6 @@ export default function MessagesPage() {
     );
   }
 
-  // Admin Testing Mode: Bypass chat restrictions for admins
   const isAdmin = profile?.role === 'admin';
   const canChat = isAdmin || ["Silver", "Gold", "Premium"].includes(profile?.membership?.plan || "Free");
 

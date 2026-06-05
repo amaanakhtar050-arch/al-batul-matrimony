@@ -13,7 +13,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { doc, collection, query, orderBy, limit, updateDoc, deleteDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 
 export function Navbar() {
@@ -137,32 +137,35 @@ export function Navbar() {
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-secondary"></span>
+                      <span className="absolute right-2 top-2 h-4 w-4 flex items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm">
+                        {unreadCount}
+                      </span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="end">
-                  <div className="p-4 border-b bg-muted/50">
+                <PopoverContent className="w-80 p-0 shadow-2xl border-primary/10" align="end">
+                  <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
                     <h3 className="font-bold text-sm">Notifications</h3>
+                    <Link href="/notifications" className="text-[10px] font-bold text-primary uppercase hover:underline">View All</Link>
                   </div>
-                  <div className="max-h-[300px] overflow-auto">
+                  <div className="max-h-[400px] overflow-auto">
                     {notifications.length > 0 ? (
                       notifications.map((n: any) => (
                         <div 
                           key={n.id} 
                           className={cn(
-                            "p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors",
-                            !n.read ? "bg-primary/5" : "bg-transparent"
+                            "p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors cursor-pointer hover:bg-muted/20",
+                            !n.read ? "bg-primary/5 border-l-4 border-l-primary" : "bg-transparent"
                           )}
                           onClick={() => !n.read && handleMarkAsRead(n.id)}
                         >
                           <div className="flex-1 space-y-1">
-                            <p className={cn(n.read ? "text-muted-foreground" : "font-semibold")}>{n.text}</p>
-                            <span className="text-[10px] text-muted-foreground">
-                              {n.createdAt?.toDate() ? format(n.createdAt.toDate(), 'MMM d, HH:mm') : 'Recently'}
+                            <p className={cn(n.read ? "text-muted-foreground" : "font-semibold text-foreground")}>{n.text}</p>
+                            <span className="text-[10px] text-muted-foreground opacity-70">
+                              {n.createdAt?.toDate() ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                             </span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => {
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteNotification(n.id);
                           }}>
@@ -171,8 +174,9 @@ export function Navbar() {
                         </div>
                       ))
                     ) : (
-                      <div className="p-8 text-center text-muted-foreground text-xs italic">
-                        No notifications.
+                      <div className="p-12 text-center flex flex-col items-center gap-2">
+                        <Bell className="h-8 w-8 text-muted-foreground/20" />
+                        <p className="text-muted-foreground text-[11px] italic">No notifications yet.</p>
                       </div>
                     )}
                   </div>
@@ -241,6 +245,7 @@ export function Navbar() {
                   );
                 })}
                 {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
+                <Link href="/notifications" className="text-lg font-medium">Notifications {unreadCount > 0 && `(${unreadCount})`}</Link>
                 <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>
                 <Link href="/membership" className="text-lg font-medium">Membership</Link>
                 {user && (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -7,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Check, X, User, MessageSquare, Users, Trash2 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy, deleteDoc } from "firebase/firestore";
+import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy, deleteDoc, addDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
@@ -69,8 +70,8 @@ export default function InterestsPage() {
   const { data: receivedInterests, loading: loadingReceived } = useCollection(receivedQuery);
   const { data: sentInterests, loading: loadingSent } = useCollection(sentQuery);
 
-  const handleUpdateStatus = (interestId: string, status: 'accepted' | 'declined') => {
-    if (!db) return;
+  const handleUpdateStatus = (interestId: string, status: 'accepted' | 'declined', partnerId: string) => {
+    if (!db || !user) return;
     const interestRef = doc(db, "interests", interestId);
     updateDoc(interestRef, {
       status,
@@ -79,6 +80,14 @@ export default function InterestsPage() {
       toast({
         title: status === 'accepted' ? "Interest Accepted" : "Interest Declined",
         description: status === 'accepted' ? "You can now chat with this member." : "Request declined.",
+      });
+
+      // Notify the requester
+      const notifyRef = collection(db, 'users', partnerId, 'notifications');
+      addDoc(notifyRef, {
+        text: `${user.displayName || "A member"} ${status} your interest request.`,
+        read: false,
+        createdAt: serverTimestamp()
       });
     }).catch(async (e) => {
       errorEmitter.emit("permission-error", new FirestorePermissionError({
@@ -170,10 +179,10 @@ export default function InterestsPage() {
                     <CardContent className="pt-0">
                       {interest.status === 'pending' && (
                         <div className="flex gap-2 mb-2">
-                          <Button size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => handleUpdateStatus(interest.id, 'accepted')}>
+                          <Button size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => handleUpdateStatus(interest.id, 'accepted', interest.fromUserId)}>
                             <Check className="h-4 w-4" /> Accept
                           </Button>
-                          <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-10 text-destructive hover:bg-destructive/5" onClick={() => handleUpdateStatus(interest.id, 'declined')}>
+                          <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-10 text-destructive hover:bg-destructive/5" onClick={() => handleUpdateStatus(interest.id, 'declined', interest.fromUserId)}>
                             <X className="h-4 w-4" /> Reject
                           </Button>
                         </div>

@@ -37,7 +37,8 @@ import {
   query, 
   orderBy, 
   deleteDoc,
-  setDoc 
+  setDoc,
+  addDoc 
 } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -89,10 +90,17 @@ export default function AdminDashboard() {
       "membership.expiresAt": expiryDate.toISOString(),
     }).then(() => {
       toast({ title: "Payment Approved", description: `${plan} membership activated.` });
+      
+      // Notify User
+      addDoc(collection(db, 'users', userId, 'notifications'), {
+        text: `Your ${plan} membership payment has been approved. Welcome to premium benefits!`,
+        read: false,
+        createdAt: serverTimestamp()
+      });
     });
   };
 
-  const handleRejectPayment = (paymentId: string) => {
+  const handleRejectPayment = (paymentId: string, userId: string) => {
     if (!db) return;
     const paymentRef = doc(db, "payments", paymentId);
     updateDoc(paymentRef, {
@@ -100,6 +108,13 @@ export default function AdminDashboard() {
       processedAt: serverTimestamp(),
     }).then(() => {
       toast({ title: "Payment Rejected", variant: "destructive" });
+
+      // Notify User
+      addDoc(collection(db, 'users', userId, 'notifications'), {
+        text: `Your membership payment was rejected. Please check your transaction details and resubmit.`,
+        read: false,
+        createdAt: serverTimestamp()
+      });
     });
   };
 
@@ -108,6 +123,15 @@ export default function AdminDashboard() {
     const userRef = doc(db, "users", userId);
     updateDoc(userRef, updates).then(() => {
       toast({ title: "Updated successfully" });
+
+      // Notify User on Status Change
+      if (updates.status) {
+        addDoc(collection(db, 'users', userId, 'notifications'), {
+          text: `Your profile verification status has been updated to: ${updates.status.toUpperCase()}.`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
     }).catch(e => errorEmitter.emit("permission-error", new FirestorePermissionError({ path: userRef.path, operation: "update" })));
   };
 
@@ -122,6 +146,12 @@ export default function AdminDashboard() {
       "membership.expiresAt": expiryDate.toISOString(),
     }).then(() => {
       toast({ title: "Membership Updated", description: `User is now on ${plan} plan.` });
+      
+      addDoc(collection(db, 'users', userId, 'notifications'), {
+        text: `Your membership has been manually updated to ${plan} by an administrator.`,
+        read: false,
+        createdAt: serverTimestamp()
+      });
     });
   };
 
@@ -220,7 +250,7 @@ export default function AdminDashboard() {
                              <Button size="sm" className="bg-green-600 h-8 hover:bg-green-700" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
                                Approve
                              </Button>
-                             <Button size="sm" variant="ghost" className="text-destructive h-8 hover:bg-destructive/10" onClick={() => handleRejectPayment(payment.id)}>
+                             <Button size="sm" variant="ghost" className="text-destructive h-8 hover:bg-destructive/10" onClick={() => handleRejectPayment(payment.id, payment.userId)}>
                                Reject
                              </Button>
                           </div>

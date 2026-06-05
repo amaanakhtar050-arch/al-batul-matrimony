@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -21,7 +22,7 @@ import {
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc } from "firebase/firestore";
 import Link from "next/link";
@@ -92,6 +93,28 @@ export default function ProfileDetailPage() {
   const existingSentInterest = sentInterests?.[0];
   const existingReceivedInterest = receivedInterests?.[0];
 
+  // Logic for "Profile viewed" notification
+  useEffect(() => {
+    if (db && currentUser && profile && id && currentUser.uid !== id) {
+      const viewerName = viewerProfile?.fullName || "A member";
+      const viewedRef = collection(db, 'users', id as string, 'notifications');
+      
+      // Simple debounce to prevent notification spam on every refresh
+      const lastViewedKey = `viewed_${id}`;
+      const lastViewed = localStorage.getItem(lastViewedKey);
+      const now = Date.now();
+      
+      if (!lastViewed || now - parseInt(lastViewed) > 3600000) { // Notify once an hour
+        addDoc(viewedRef, {
+          text: `${viewerName} viewed your profile.`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+        localStorage.setItem(lastViewedKey, now.toString());
+      }
+    }
+  }, [db, currentUser, profile, id, viewerProfile]);
+
   const handleSendInterest = async () => {
     if (!currentUser || !db || !profile) return;
     
@@ -106,7 +129,6 @@ export default function ProfileDetailPage() {
       return;
     }
 
-    // Double check state to prevent duplicates
     if (existingSentInterest || existingReceivedInterest) {
       toast({ title: "Interaction Exists", description: "You already have an active interaction with this member." });
       return;
@@ -128,6 +150,14 @@ export default function ProfileDetailPage() {
     addDoc(interestRef, interestData)
       .then(() => {
         toast({ title: "Interest Sent", description: "We've notified the member of your interest." });
+        
+        // Notify recipient
+        const notifyRef = collection(db, 'users', profile.id, 'notifications');
+        addDoc(notifyRef, {
+          text: `${viewerProfile?.fullName || "A member"} sent you an interest request.`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
       })
       .catch(async (e) => {
         errorEmitter.emit("permission-error", new FirestorePermissionError({ 
@@ -172,7 +202,6 @@ export default function ProfileDetailPage() {
   const canInteract = isAdmin || (viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended);
   const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
   
-  // Admin Testing Mode: Bypass membership and match restrictions for contact and chat
   const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
   const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
