@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,6 +14,8 @@ import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Mail, ShieldCheck, Loader2 } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -20,12 +24,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth || !db) return;
 
     if (password !== confirmPassword) {
       toast({
@@ -49,7 +54,32 @@ export default function RegisterPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
+      const user = userCredential.user;
+
+      // Create initial user profile in Firestore immediately
+      const userDocRef = doc(db, 'users', user.uid);
+      const initialProfile = {
+        email: user.email,
+        status: 'pending',
+        role: 'user',
+        isProfileComplete: false,
+        isSuspended: false,
+        isBanned: false,
+        membership: { plan: 'Free' },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await setDoc(userDocRef, initialProfile, { merge: true })
+        .catch(async (e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: initialProfile
+          }));
+        });
+
+      await sendEmailVerification(user);
       setVerificationSent(true);
       toast({
         title: "Account created!",

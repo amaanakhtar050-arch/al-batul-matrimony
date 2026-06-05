@@ -3,7 +3,7 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -18,14 +18,10 @@ import {
   Lock,
   CreditCard,
   UserCheck,
-  ShieldCheck,
-  Eye,
-  FileText,
-  UserCircle,
-  XCircle,
   MoreVertical,
-  ArrowUpCircle,
-  ArrowDownCircle
+  ShieldCheck,
+  XCircle,
+  FileText
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -47,7 +43,6 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 
 const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
@@ -72,8 +67,8 @@ export default function AdminDashboard() {
     return doc(db, "settings", "platform");
   }, [db]);
 
-  const { data: payments } = useCollection(paymentsQuery);
-  const { data: allUsers } = useCollection(allUsersQuery);
+  const { data: payments, loading: loadingPayments } = useCollection(paymentsQuery);
+  const { data: allUsers, loading: loadingUsers } = useCollection(allUsersQuery);
   const { data: settings } = useDoc(platformSettingsRef);
 
   const handleApprovePayment = (paymentId: string, userId: string, plan: string) => {
@@ -147,9 +142,11 @@ export default function AdminDashboard() {
   };
 
   const filteredUsers = allUsers?.filter(u => 
-    u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.city?.toLowerCase().includes(searchTerm.toLowerCase())
+    (u.fullName || u.email || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.city || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const pendingVerifications = allUsers?.filter(u => u.status === 'pending' && u.isProfileComplete);
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,7 +162,7 @@ export default function AdminDashboard() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Search by name or city..." 
+                placeholder="Search members..." 
                 className="w-64 pl-10 h-10" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -180,7 +177,7 @@ export default function AdminDashboard() {
               <CreditCard className="h-4 w-4" /> Payments
             </TabsTrigger>
             <TabsTrigger value="approvals" className="gap-2 px-4 py-2">
-              <UserCheck className="h-4 w-4" /> Verifications
+              <UserCheck className="h-4 w-4" /> Verifications {pendingVerifications?.length > 0 && <Badge className="ml-1 h-5 bg-primary">{pendingVerifications.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-2 px-4 py-2">
               <Users className="h-4 w-4" /> All Members
@@ -204,7 +201,9 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments?.map((payment: any) => (
+                  {loadingPayments ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-20">Loading payments...</TableCell></TableRow>
+                  ) : payments?.map((payment: any) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-semibold text-sm">{payment.userName}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{payment.plan}</Badge></TableCell>
@@ -218,10 +217,10 @@ export default function AdminDashboard() {
                       <TableCell className="text-right">
                         {payment.status === 'pending' && (
                           <div className="flex justify-end gap-2">
-                             <Button size="sm" className="bg-green-600 h-8" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
+                             <Button size="sm" className="bg-green-600 h-8 hover:bg-green-700" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>
                                Approve
                              </Button>
-                             <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => handleRejectPayment(payment.id)}>
+                             <Button size="sm" variant="ghost" className="text-destructive h-8 hover:bg-destructive/10" onClick={() => handleRejectPayment(payment.id)}>
                                Reject
                              </Button>
                           </div>
@@ -229,8 +228,8 @@ export default function AdminDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!payments?.length && (
-                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground">No pending payments.</TableCell></TableRow>
+                  {!loadingPayments && !payments?.length && (
+                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground">No pending payments found.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -249,7 +248,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allUsers?.filter(u => u.status === 'pending').map((user: any) => (
+                  {pendingVerifications?.map((user: any) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-semibold text-sm">{user.fullName}</TableCell>
                       <TableCell>
@@ -260,7 +259,9 @@ export default function AdminDashboard() {
                                 <DialogHeader>
                                   <DialogTitle>ID Document Preview - {user.fullName}</DialogTitle>
                                 </DialogHeader>
-                                <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" width={800} height={600} className="rounded-lg object-contain" />
+                                <div className="relative aspect-video w-full mt-4 overflow-hidden rounded-lg">
+                                  <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" fill className="object-contain" />
+                                </div>
                             </DialogContent>
                           </Dialog>
                           <Dialog>
@@ -269,7 +270,9 @@ export default function AdminDashboard() {
                                 <DialogHeader>
                                   <DialogTitle>Verification Selfie Preview - {user.fullName}</DialogTitle>
                                 </DialogHeader>
-                                <Image src={user.selfiePhotoUrl || "https://picsum.photos/seed/selfie/600/600"} alt="Selfie" width={600} height={600} className="rounded-lg object-contain" />
+                                <div className="relative aspect-square w-full mt-4 overflow-hidden rounded-lg">
+                                  <Image src={user.selfiePhotoUrl || "https://picsum.photos/seed/selfie/600/600"} alt="Selfie" fill className="object-contain" />
+                                </div>
                             </DialogContent>
                           </Dialog>
                         </div>
@@ -277,12 +280,15 @@ export default function AdminDashboard() {
                       <TableCell className="text-xs">{user.city}, {user.country}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" className="bg-green-600 h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>Approve</Button>
-                          <Button size="sm" variant="outline" className="text-destructive h-8" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>Reject</Button>
+                          <Button size="sm" className="bg-green-600 h-8 hover:bg-green-700" onClick={() => handleUpdateUserStatus(user.id, { status: 'approved' })}>Approve</Button>
+                          <Button size="sm" variant="outline" className="text-destructive h-8 hover:bg-destructive/10" onClick={() => handleUpdateUserStatus(user.id, { status: 'rejected' })}>Reject</Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {!pendingVerifications?.length && (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No pending profile verifications.</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </Card>
@@ -296,7 +302,7 @@ export default function AdminDashboard() {
                     <TableHead>Member</TableHead>
                     <TableHead>Current Plan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Administrative Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -304,7 +310,7 @@ export default function AdminDashboard() {
                     <TableRow key={user.id} className={user.isBanned ? "bg-red-50/30" : ""}>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-semibold text-sm">{user.fullName}</span>
+                          <span className="font-semibold text-sm">{user.fullName || user.email || "Unnamed Member"}</span>
                           <span className="text-[10px] text-muted-foreground uppercase">{user.id.slice(0, 8)}</span>
                         </div>
                       </TableCell>
@@ -329,20 +335,23 @@ export default function AdminDashboard() {
                           <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4">
                             {user.status}
                           </Badge>
-                          {user.isSuspended && <Badge variant="outline" className="text-orange-600 text-[9px] h-4">Suspended</Badge>}
+                          {user.isSuspended && <Badge variant="outline" className="text-orange-600 border-orange-200 text-[9px] h-4">Suspended</Badge>}
                           {user.isBanned && <Badge variant="destructive" className="text-[9px] h-4">Banned</Badge>}
+                          {!user.isProfileComplete && <Badge variant="outline" className="text-muted-foreground text-[9px] h-4">Incomplete</Badge>}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8" 
+                            title={user.isSuspended ? "Unlock" : "Suspend"}
                             onClick={() => handleUpdateUserStatus(user.id, { isSuspended: !user.isSuspended })}
                           >
                             {user.isSuspended ? <Unlock className="h-4 w-4 text-green-600" /> : <Lock className="h-4 w-4 text-orange-600" />}
                           </Button>
                           <Button 
                             size="icon" variant="ghost" className="h-8 w-8"
+                            title={user.isBanned ? "Unban" : "Ban"}
                             onClick={() => handleUpdateUserStatus(user.id, { isBanned: !user.isBanned })}
                           >
                             <Ban className={`h-4 w-4 ${user.isBanned ? "text-primary" : "text-destructive"}`} />
@@ -354,6 +363,9 @@ export default function AdminDashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {!loadingUsers && !filteredUsers?.length && (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground">No members found.</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             </Card>
@@ -365,17 +377,21 @@ export default function AdminDashboard() {
                 <CardHeader><CardTitle className="text-lg">System Controls</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Maintenance Mode</Label>
+                    <div className="space-y-0.5">
+                      <Label className="text-sm">Maintenance Mode</Label>
+                      <p className="text-[10px] text-muted-foreground">Disable all public interaction.</p>
+                    </div>
                     <Switch checked={settings?.maintenanceMode || false} onCheckedChange={(val) => handleUpdateSettings({ maintenanceMode: val })} />
                   </div>
                 </CardContent>
               </Card>
               <Card className="border-none shadow-sm">
-                <CardHeader><CardTitle className="text-lg">Payment Info</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Payment Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs">UPI ID for Members</Label>
+                    <Label className="text-xs">Active UPI ID for Payments</Label>
                     <Input defaultValue={settings?.upiId} className="h-10" onBlur={(e) => handleUpdateSettings({ upiId: e.target.value })} />
+                    <p className="text-[10px] text-muted-foreground">Members will see this ID during membership upgrade.</p>
                   </div>
                 </CardContent>
               </Card>
