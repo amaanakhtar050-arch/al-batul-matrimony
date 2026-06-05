@@ -10,7 +10,6 @@ import {
   MapPin, 
   GraduationCap, 
   Briefcase, 
-  Calendar, 
   ShieldCheck, 
   Flag, 
   Ban, 
@@ -30,9 +29,9 @@ import {
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, where, addDoc, serverTimestamp, getDocs, limit } from "firebase/firestore";
+import { doc, collection, query, where, addDoc, serverTimestamp, limit } from "firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -174,7 +173,7 @@ export default function ProfileDetailPage() {
                 {!canInteract && (
                   <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-2xl text-xs text-muted-foreground border border-dashed text-center justify-center">
                     <Lock className="h-4 w-4" />
-                    Complete your profile and wait for admin approval to interact.
+                    Account verification required to interact.
                   </div>
                 )}
                 
@@ -185,13 +184,13 @@ export default function ProfileDetailPage() {
                       className="h-14 flex-1 gap-2 text-lg font-bold bg-muted text-muted-foreground cursor-not-allowed"
                     >
                       {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : existingSentInterest.status === 'accepted' ? <CheckCircle2 className="h-5 w-5" /> : <X className="h-5 w-5" />}
-                      Interest {existingSentInterest.status === 'pending' ? 'Pending' : existingSentInterest.status.charAt(0).toUpperCase() + existingSentInterest.status.slice(1)}
+                      Interest {existingSentInterest.status.charAt(0).toUpperCase() + existingSentInterest.status.slice(1)}
                     </Button>
                   ) : existingReceivedInterest ? (
                     <Link href="/interests" className="flex-1">
                       <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white">
                         <Heart className="h-5 w-5 fill-white" />
-                        Manage Request
+                        Handle Request
                       </Button>
                     </Link>
                   ) : (
@@ -214,8 +213,8 @@ export default function ProfileDetailPage() {
                       onClick={() => {
                         if (!isMatched) {
                           toast({ 
-                            title: "Chat Locked", 
-                            description: "You can only chat after an interest request is accepted.",
+                            title: "Connection Required", 
+                            description: "Mutual interest must be accepted to unlock private chat.",
                             variant: "destructive"
                           });
                         }
@@ -225,11 +224,6 @@ export default function ProfileDetailPage() {
                     </Button>
                   </Link>
                 </div>
-                {!isMatched && canInteract && (
-                  <p className="text-[10px] text-center text-muted-foreground italic">
-                    Messaging enables automatically after mutual interest acceptance.
-                  </p>
-                )}
               </div>
 
               <div className="flex items-center justify-center gap-6 pt-2 text-muted-foreground">
@@ -333,7 +327,7 @@ export default function ProfileDetailPage() {
                 <div className="rounded-3xl bg-muted/30 border-2 border-dashed border-border p-10 text-center">
                   <Lock className="mx-auto mb-4 h-10 w-10 text-muted-foreground/50" />
                   <p className="text-lg font-bold mb-2">Details Locked</p>
-                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold, Premium, or Prime membership to view contact details.</p>
+                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold+ membership to view contact details.</p>
                   <Link href="/membership">
                     <Button className="gap-2 bg-primary text-white font-bold h-11 px-8">
                       <Crown className="h-4 w-4" />
@@ -387,10 +381,6 @@ export default function ProfileDetailPage() {
                   <div className="flex justify-between border-b border-primary/10 py-2">
                     <span className="text-muted-foreground text-sm">Min. Education</span>
                     <span className="font-medium text-sm">{profile.partnerPreferences?.education || 'Any'}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-primary/10 py-2">
-                    <span className="text-muted-foreground text-sm">Preferred Region</span>
-                    <span className="font-medium text-sm">{profile.partnerPreferences?.location || 'Any'}</span>
                   </div>
                 </div>
               </section>

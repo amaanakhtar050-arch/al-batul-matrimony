@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Check, X, User, MessageSquare } from "lucide-react";
+import { Heart, Check, X, User, MessageSquare, Users } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, updateDoc, doc, serverTimestamp, orderBy } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -68,6 +68,12 @@ export default function InterestsPage() {
     });
   };
 
+  const pendingReceived = receivedInterests.filter(i => i.status === 'pending');
+  const acceptedMatches = [
+    ...receivedInterests.filter(i => i.status === 'accepted'),
+    ...sentInterests.filter(i => i.status === 'accepted')
+  ];
+
   if (authLoading || loadingReceived || loadingSent) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -89,9 +95,16 @@ export default function InterestsPage() {
         <Tabs defaultValue="received" className="w-full">
           <TabsList className="mb-8 h-auto p-1 bg-muted/50">
             <TabsTrigger value="received" className="gap-2 px-6 py-2.5 font-bold">
-              Received {receivedInterests.filter(i => i.status === 'pending').length > 0 && (
+              Received {pendingReceived.length > 0 && (
                 <Badge variant="secondary" className="bg-primary text-white ml-1">
-                  {receivedInterests.filter(i => i.status === 'pending').length}
+                  {pendingReceived.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="matches" className="gap-2 px-6 py-2.5 font-bold">
+              Matches {acceptedMatches.length > 0 && (
+                <Badge variant="outline" className="ml-1">
+                  {acceptedMatches.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -102,8 +115,8 @@ export default function InterestsPage() {
 
           <TabsContent value="received">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {receivedInterests.length > 0 ? (
-                receivedInterests.map((interest: any) => (
+              {receivedInterests.filter(i => i.status !== 'accepted').length > 0 ? (
+                receivedInterests.filter(i => i.status !== 'accepted').map((interest: any) => (
                   <Card key={interest.id} className="overflow-hidden border-none shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center gap-4 pb-4">
                       <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted border-2 border-primary/10">
@@ -115,18 +128,18 @@ export default function InterestsPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <CardTitle className="text-lg font-bold">{interest.fromUserName || 'Member'}</CardTitle>
+                        <CardTitle className="text-lg font-bold truncate">{interest.fromUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs">
-                          Sent on {interest.createdAt?.toDate().toLocaleDateString()}
+                          Received on {interest.createdAt?.toDate() ? interest.createdAt.toDate().toLocaleDateString() : 'recent'}
                         </CardDescription>
                       </div>
-                      <Badge variant={interest.status === 'pending' ? 'secondary' : interest.status === 'accepted' ? 'default' : 'destructive'} className="text-[10px] uppercase">
+                      <Badge variant={interest.status === 'pending' ? 'secondary' : 'destructive'} className="text-[10px] uppercase">
                         {interest.status}
                       </Badge>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      {interest.status === 'pending' ? (
-                        <div className="flex gap-2">
+                      {interest.status === 'pending' && (
+                        <div className="flex gap-2 mb-2">
                           <Button size="sm" className="flex-1 gap-1.5 h-10 font-bold" onClick={() => handleUpdateStatus(interest.id, 'accepted')}>
                             <Check className="h-4 w-4" /> Accept
                           </Button>
@@ -134,18 +147,10 @@ export default function InterestsPage() {
                             <X className="h-4 w-4" /> Decline
                           </Button>
                         </div>
-                      ) : interest.status === 'accepted' ? (
-                        <Link href="/messages" className="block">
-                          <Button className="w-full gap-2 h-10 font-bold" variant="secondary">
-                            <MessageSquare className="h-4 w-4" /> Start Chat
-                          </Button>
-                        </Link>
-                      ) : (
-                        <p className="text-center text-xs text-muted-foreground italic py-2">This request was declined.</p>
                       )}
-                      <Link href={`/profiles/${interest.fromUserId}`} className="block mt-2">
+                      <Link href={`/profiles/${interest.fromUserId}`} className="block">
                         <Button variant="ghost" size="sm" className="w-full text-xs h-8 opacity-70">
-                          View Profile
+                          View Full Profile
                         </Button>
                       </Link>
                     </CardContent>
@@ -154,7 +159,60 @@ export default function InterestsPage() {
               ) : (
                 <div className="col-span-full py-24 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
                    <Heart className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
-                   <p className="text-muted-foreground font-medium">No interest requests received yet.</p>
+                   <p className="text-muted-foreground font-medium">No pending requests received.</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="matches">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {acceptedMatches.length > 0 ? (
+                acceptedMatches.map((interest: any) => {
+                  const partnerId = interest.fromUserId === user?.uid ? interest.toUserId : interest.fromUserId;
+                  const partnerName = interest.fromUserId === user?.uid ? interest.toUserName : interest.fromUserName;
+                  
+                  return (
+                    <Card key={interest.id} className="overflow-hidden border-none shadow-sm bg-accent/10 border-l-4 border-l-primary">
+                      <CardHeader className="flex flex-row items-center gap-4 pb-4">
+                        <div className="relative h-16 w-16 overflow-hidden rounded-full bg-muted border-2 border-primary/20">
+                          <Image 
+                            src={`https://picsum.photos/seed/${partnerId}/200/200`} 
+                            alt="User" 
+                            fill 
+                            className="object-cover" 
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-lg font-bold truncate">{partnerName}</CardTitle>
+                          <CardDescription className="text-xs uppercase tracking-tighter text-primary font-bold">
+                            Mutual Match
+                          </CardDescription>
+                        </div>
+                        <Users className="h-5 w-5 text-primary opacity-30" />
+                      </CardHeader>
+                      <CardContent className="pt-0 flex flex-col gap-2">
+                        <Link href="/messages" className="block">
+                          <Button className="w-full gap-2 h-10 font-bold" variant="default">
+                            <MessageSquare className="h-4 w-4" /> Start Conversation
+                          </Button>
+                        </Link>
+                        <Link href={`/profiles/${partnerId}`} className="block">
+                          <Button variant="ghost" size="sm" className="w-full text-xs h-8 opacity-70">
+                            View Profile
+                          </Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              ) : (
+                <div className="col-span-full py-24 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
+                   <Users className="mx-auto h-12 w-12 text-muted-foreground/30 mb-4" />
+                   <p className="text-muted-foreground font-medium">No mutual matches yet. Keep exploring!</p>
+                   <Link href="/discover" className="mt-4 block">
+                      <Button variant="link" className="font-bold text-primary">Discover Profiles</Button>
+                   </Link>
                 </div>
               )}
             </div>
@@ -175,9 +233,9 @@ export default function InterestsPage() {
                         />
                       </div>
                       <div className="flex-1">
-                        <CardTitle className="text-lg font-bold">{interest.toUserName || 'Member'}</CardTitle>
+                        <CardTitle className="text-lg font-bold truncate">{interest.toUserName || 'Member'}</CardTitle>
                         <CardDescription className="text-xs uppercase tracking-wider">
-                          {interest.status}
+                          Status: {interest.status}
                         </CardDescription>
                       </div>
                       <Badge variant={interest.status === 'accepted' ? 'default' : interest.status === 'declined' ? 'destructive' : 'secondary'} className="h-5 text-[9px]">
@@ -192,11 +250,18 @@ export default function InterestsPage() {
                           </Button>
                         </Link>
                       ) : interest.status === 'declined' ? (
-                        <p className="text-center text-xs text-muted-foreground italic py-2">The member has declined the request.</p>
+                        <p className="text-center text-xs text-muted-foreground italic py-2">The member declined the request.</p>
                       ) : (
-                        <p className="text-center text-xs text-muted-foreground py-2 flex items-center justify-center gap-2">
-                           <User className="h-3 w-3" /> Awaiting response...
-                        </p>
+                        <div className="flex flex-col gap-2">
+                           <p className="text-center text-xs text-muted-foreground py-2 flex items-center justify-center gap-2">
+                              <User className="h-3 w-3" /> Awaiting response...
+                           </p>
+                           <Link href={`/profiles/${interest.toUserId}`}>
+                            <Button variant="ghost" size="sm" className="w-full text-xs h-8 opacity-70">
+                              View Profile
+                            </Button>
+                          </Link>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
