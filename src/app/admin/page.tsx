@@ -94,7 +94,7 @@ export default function AdminDashboard() {
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
         title: '💳 Membership Plan Activated',
-        description: `Your ${plan} membership payment has been approved. Enjoy your new benefits and increased visibility!`,
+        message: `Your ${plan} membership payment has been approved. Enjoy your new benefits and increased visibility!`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_rejected',
         title: '❌ Payment Verification Failed',
-        description: `Your membership payment for the plan was rejected. Please verify your transaction details and resubmit proof of payment.`,
+        message: `Your membership payment for the plan was rejected. Please verify your transaction details and resubmit proof of payment.`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -136,7 +136,7 @@ export default function AdminDashboard() {
         addDoc(collection(db, 'users', userId, 'notifications'), {
           type: updates.status === 'approved' ? 'verification_approved' : 'verification_rejected',
           title: updates.status === 'approved' ? '✅ Profile Verification Successful' : '❌ Profile Verification Rejected',
-          description: updates.status === 'approved' 
+          message: updates.status === 'approved' 
             ? 'Congratulations! Your profile has been verified by our team and is now visible to other members looking for matches.' 
             : 'Your profile verification was rejected. Please ensure your identity documents are clear and your profile information is complete.',
           senderId: 'admin',
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
         title: '⭐ Membership Manually Updated',
-        description: `Your account has been upgraded to the ${plan} plan by an administrator. Enjoy the premium features!`,
+        message: `Your account has been upgraded to the ${plan} plan by an administrator. Enjoy the premium features!`,
         senderId: 'admin',
         receiverId: userId,
         read: false,

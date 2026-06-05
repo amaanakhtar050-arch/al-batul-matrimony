@@ -156,7 +156,7 @@ export default function MessagesPage() {
         addDoc(notifyRef, {
           type: 'message',
           title: '💬 New Message Received',
-          description: `You received a new message from ${profile.fullName || "a member"}: "${currentText.slice(0, 30)}${currentText.length > 30 ? '...' : ''}"`,
+          message: `You received a new message from ${profile.fullName || "a member"}: "${currentText.slice(0, 30)}${currentText.length > 30 ? '...' : ''}"`,
           senderId: user.uid,
           receiverId: partnerId,
           read: false,

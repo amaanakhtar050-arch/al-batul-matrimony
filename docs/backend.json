@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -113,13 +112,13 @@
       "properties": {
         "type": { "type": "string" },
         "title": { "type": "string" },
-        "description": { "type": "string" },
+        "message": { "type": "string" },
         "senderId": { "type": "string" },
         "receiverId": { "type": "string" },
         "read": { "type": "boolean", "default": false },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["type", "title", "description", "read", "createdAt"]
+      "required": ["type", "title", "message", "read", "createdAt"]
     },
     "PlatformSettings": {
       "title": "Platform Settings",

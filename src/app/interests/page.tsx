@@ -93,7 +93,7 @@ export default function InterestsPage() {
       addDoc(notifyRef, {
         type: status === 'accepted' ? 'interest_accepted' : 'interest_rejected',
         title: status === 'accepted' ? 'Interest Accepted' : 'Interest Declined',
-        description: status === 'accepted' 
+        message: status === 'accepted' 
           ? `${profile.fullName || "A member"} accepted your interest request! You can now start chatting.` 
           : `${profile.fullName || "A member"} declined your interest request.`,
         senderId: user.uid,
@@ -108,7 +108,7 @@ export default function InterestsPage() {
         addDoc(myNotifyRef, {
           type: 'match_created',
           title: '🎉 New Match Created',
-          description: `You and ${partnerName} are now matched! Start a conversation to get to know each other.`,
+          message: `You and ${partnerName} are now matched! Start a conversation to get to know each other.`,
           senderId: 'system',
           receiverId: user.uid,
           read: false,

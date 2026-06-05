@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -163,7 +163,7 @@ export function Navbar() {
                               {n.title || "Notification"}
                             </p>
                             <p className="text-[10px] text-muted-foreground line-clamp-2">
-                              {n.description || "Notification details..."}
+                              {n.message || n.description || "Notification details..."}
                             </p>
                             <span className="text-[9px] text-muted-foreground opacity-70">
                               {n.createdAt?.toDate() ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}

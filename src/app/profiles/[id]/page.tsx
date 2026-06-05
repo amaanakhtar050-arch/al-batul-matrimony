@@ -107,7 +107,7 @@ export default function ProfileDetailPage() {
         addDoc(viewedRef, {
           type: 'profile_viewed',
           title: '👀 Profile Viewed',
-          description: `${viewerName} viewed your profile. Potential match!`,
+          message: `${viewerName} viewed your profile. Potential match!`,
           senderId: currentUser.uid,
           receiverId: id,
           read: false,
@@ -159,7 +159,7 @@ export default function ProfileDetailPage() {
         addDoc(notifyRef, {
           type: 'interest_received',
           title: '❤️ Interest Received',
-          description: `${viewerProfile.fullName || "A member"} sent you an interest request. Click to respond!`,
+          message: `${viewerProfile.fullName || "A member"} sent you an interest request. Click to respond!`,
           senderId: currentUser.uid,
           receiverId: profile.id,
           read: false,

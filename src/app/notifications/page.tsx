@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trash2, CheckCircle2, Heart, MessageSquare, ShieldCheck, User, Clock, CreditCard } from "lucide-react";
+import { Bell, Trash2, CheckCircle2, Heart, MessageSquare, ShieldCheck, User, Clock, CreditCard, Eye } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
@@ -31,6 +31,13 @@ export default function NotificationsPage() {
   }, [db, user]);
 
   const { data: notifications, loading: loadingNotifications } = useCollection(notificationsQuery);
+
+  // Debug logging as requested
+  useEffect(() => {
+    if (notifications.length > 0) {
+      console.log('Al Batul Notifications Data:', notifications);
+    }
+  }, [notifications]);
 
   const handleMarkAsRead = (id: string) => {
     if (!db || !user) return;
@@ -109,7 +116,7 @@ export default function NotificationsPage() {
                         {notification.title || "Notification"}
                       </p>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        {notification.description || "Notification details unavailable."}
+                        {notification.message || notification.description || "View details in your profile activity stream."}
                       </p>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-wider pt-1">
                         <Clock className="h-3 w-3" />

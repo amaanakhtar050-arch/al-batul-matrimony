@@ -108,7 +108,7 @@ export default function DashboardPage() {
       addDoc(notificationsRef, {
         type: 'welcome',
         title: 'Welcome to Al Batul Matrimony',
-        description: "Welcome to Al Batul Matrimony. We are delighted to have you on your journey towards completing your deen.",
+        message: "Welcome to Al Batul Matrimony. We are delighted to have you on your journey towards completing your deen. Please complete your profile to find your match.",
         senderId: 'system',
         receiverId: user.uid,
         read: false,
