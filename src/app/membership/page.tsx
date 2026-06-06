@@ -64,6 +64,8 @@ export default function MembershipPage() {
   const [selectedPlan, setSelectedPlan] = useState<{name: string, price: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const activeUpiId = settings?.upiId || "amaanakhtar050-1@oksbi";
+
   const handleSelectPlan = (name: string, price: number) => {
     if (price === 0) {
         toast({ title: "Free Plan", description: "This is your default plan. No payment needed." });
@@ -136,7 +138,6 @@ export default function MembershipPage() {
         </header>
 
         <div className="grid gap-10 lg:grid-cols-3">
-          {/* Plans Selection */}
           <div className="lg:col-span-2 space-y-8">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -177,8 +178,8 @@ export default function MembershipPage() {
                 <div className="flex justify-between items-center group">
                   <span className="text-sm text-muted-foreground">UPI ID</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-primary">{settings?.upiId || "albatul@upi"}</span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(settings?.upiId || "albatul@upi")}>
+                    <span className="font-bold text-primary">{activeUpiId}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(activeUpiId)}>
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
@@ -187,19 +188,10 @@ export default function MembershipPage() {
                   <span className="text-sm text-muted-foreground">Account Holder</span>
                   <span className="font-bold text-right">Al Batul Matrimony</span>
                 </div>
-                <div className="flex justify-between items-center group">
-                  <span className="text-sm text-muted-foreground">Account Number</span>
-                  <span className="font-bold font-mono">1122 3344 5566 7788</span>
-                </div>
-                <div className="flex justify-between items-center group">
-                  <span className="text-sm text-muted-foreground">IFSC</span>
-                  <span className="font-bold">BANK0001234</span>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Verification Form */}
           <div className="space-y-6">
              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5 text-primary" />
@@ -230,7 +222,7 @@ export default function MembershipPage() {
                 
                 <div className="rounded-xl border-2 border-dashed p-6 text-center transition-colors hover:border-primary/50 bg-muted/5">
                   <Upload className="mx-auto mb-2 h-6 w-6 text-muted-foreground/30" />
-                  <p className="text-xs font-bold text-muted-foreground">Attach Payment Screenshot</p>
+                  <p className="text-xs font-bold text-muted-foreground">Payment Screenshot (Optional)</p>
                 </div>
 
                 <div className="flex items-start gap-3 rounded-xl bg-accent/30 p-4 text-primary text-[11px] font-medium">
