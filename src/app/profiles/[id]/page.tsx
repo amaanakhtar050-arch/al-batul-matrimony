@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Sparkles,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import {
   Carousel,
