@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Heart, 
   ShieldCheck, 
@@ -18,7 +18,10 @@ import {
   Trash2,
   Edit2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  TrendingUp,
+  AlertCircle
 } from "lucide-react";
 import {
   Carousel,
@@ -39,6 +42,7 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 import { ActivityStatus } from "@/components/profile/ActivityStatus";
+import { calculateCompatibility, CalculateCompatibilityOutput } from "@/ai/flows/calculate-compatibility";
 
 /**
  * A helper component to display a user's avatar fetching the latest photo from Firestore.
@@ -70,6 +74,9 @@ export default function ProfileDetailPage() {
   const [isSending, setIsSending] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  
+  const [aiScore, setAiScore] = useState<CalculateCompatibilityOutput | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
 
   const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id as string) : null, [db, id]);
   const { data: profile, loading: profileLoading } = useDoc(profileRef);
@@ -110,6 +117,52 @@ export default function ProfileDetailPage() {
 
   const existingSentInterest = sentInterests?.[0];
   const existingReceivedInterest = receivedInterests?.[0];
+
+  // AI Compatibility Logic
+  useEffect(() => {
+    async function getCompatibility() {
+      if (!viewerProfile || !profile || id === currentUser?.uid || aiScore || loadingAi) return;
+      
+      setLoadingAi(true);
+      try {
+        const result = await calculateCompatibility({
+          viewerProfile: {
+            fullName: viewerProfile.fullName,
+            age: Number(viewerProfile.age) || 25,
+            sect: viewerProfile.sect || 'Other',
+            education: viewerProfile.education || '',
+            occupation: viewerProfile.occupation || '',
+            city: viewerProfile.city || '',
+            country: viewerProfile.country || '',
+            maritalStatus: viewerProfile.maritalStatus || '',
+            lifestyle: viewerProfile.lifestyle || '',
+            partnerPreferences: viewerProfile.partnerPreferences || {}
+          },
+          targetProfile: {
+            fullName: profile.fullName,
+            age: Number(profile.age) || 25,
+            sect: profile.sect || 'Other',
+            education: profile.education || '',
+            occupation: profile.occupation || '',
+            city: profile.city || '',
+            country: profile.country || '',
+            maritalStatus: profile.maritalStatus || '',
+            lifestyle: profile.lifestyle || '',
+            partnerPreferences: profile.partnerPreferences || {}
+          }
+        });
+        setAiScore(result);
+      } catch (err) {
+        console.error("AI Compatibility Error:", err);
+      } finally {
+        setLoadingAi(false);
+      }
+    }
+    
+    if (viewerProfile && profile && !aiScore && !loadingAi && id !== currentUser?.uid) {
+      getCompatibility();
+    }
+  }, [viewerProfile, profile, id, currentUser?.uid, aiScore, loadingAi]);
 
   useEffect(() => {
     if (db && currentUser && profile && id && currentUser.uid !== id && viewerProfile) {
@@ -220,18 +273,18 @@ export default function ProfileDetailPage() {
   const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
   const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
-  // Migration logic: Prefer photos array, fallback to photoUrl as a single-item array
   const displayPhotos = profile.photos?.length > 0 ? profile.photos : (profile.photoUrl ? [profile.photoUrl] : []);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-12 lg:px-8">
+      <main className="container mx-auto px-4 py-12 lg:px-8 max-w-7xl">
         <div className="grid gap-12 lg:grid-cols-5">
+          {/* Photo Section */}
           <div className="lg:col-span-2">
-            <div className="sticky top-24 space-y-6">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted border border-border">
+            <div className="sticky top-24 space-y-8">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[4rem] shadow-[0_50px_100px_rgba(0,0,0,0.15)] bg-muted border-4 border-white">
                 {displayPhotos.length > 0 ? (
                   <Carousel setApi={setApi} className="w-full h-full">
                     <CarouselContent>
@@ -245,17 +298,12 @@ export default function ProfileDetailPage() {
                     </CarouselContent>
                     {displayPhotos.length > 1 && (
                       <>
-                        <CarouselPrevious className="left-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
-                        <CarouselNext className="right-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
+                        <CarouselPrevious className="left-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40 h-12 w-12" />
+                        <CarouselNext className="right-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40 h-12 w-12" />
+                        <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10">
                           {displayPhotos.map((_: any, i: number) => (
-                             <div key={i} className={cn("h-1.5 w-6 rounded-full transition-all duration-300", i === current ? "bg-white w-8 shadow-sm" : "bg-white/30")} />
+                             <div key={i} className={cn("h-1.5 w-8 rounded-full transition-all duration-300", i === current ? "bg-white w-12 shadow-sm" : "bg-white/30")} />
                           ))}
-                        </div>
-                        <div className="absolute top-4 right-4 z-20">
-                          <Badge variant="outline" className="bg-black/20 backdrop-blur-md border-white/20 text-white font-bold text-[10px]">
-                            {current + 1} / {displayPhotos.length}
-                          </Badge>
                         </div>
                       </>
                     )}
@@ -266,9 +314,9 @@ export default function ProfileDetailPage() {
                   </div>
                 )}
                 {profile.status === 'approved' && (
-                   <div className="absolute left-6 top-6 z-20 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-primary shadow-lg backdrop-blur-md">
+                   <div className="absolute left-8 top-8 z-20 flex items-center gap-2 rounded-2xl bg-white/95 px-5 py-2.5 text-primary shadow-2xl backdrop-blur-2xl border border-primary/10">
                       <ShieldCheck className="h-5 w-5" />
-                      <span className="text-sm font-bold">Verified Member</span>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Verified Al Batul Member</span>
                    </div>
                 )}
               </div>
@@ -276,7 +324,7 @@ export default function ProfileDetailPage() {
               <div className="flex flex-col gap-4">
                 {isSelf ? (
                   <Link href="/setup-profile" className="flex-1">
-                    <Button className="h-14 w-full gap-2 text-lg font-bold">
+                    <Button className="h-16 w-full gap-3 text-xl font-bold rounded-[2rem] shadow-xl">
                       <Edit2 className="h-5 w-5" /> Edit My Profile
                     </Button>
                   </Link>
@@ -284,26 +332,24 @@ export default function ProfileDetailPage() {
                   <div className="flex flex-col gap-4">
                     <div className="flex gap-4">
                       {isMatched ? (
-                        <div className="flex flex-col flex-1 gap-2">
-                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-green-600 text-white border-none opacity-100 shadow-md">
-                            <CheckCircle2 className="h-5 w-5" /> Mutual Match
-                          </Button>
-                        </div>
+                        <Button disabled className="h-16 flex-1 gap-3 text-lg font-bold bg-green-600 text-white border-none opacity-100 shadow-xl rounded-[2rem]">
+                          <CheckCircle2 className="h-6 w-6" /> Mutual Match
+                        </Button>
                       ) : existingSentInterest ? (
-                        <div className="flex flex-col flex-1 gap-2">
-                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-muted text-muted-foreground">
-                            {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5" /> : null}
+                        <div className="flex flex-col flex-1 gap-3">
+                          <Button disabled className="h-16 w-full gap-3 text-lg font-bold bg-muted text-muted-foreground rounded-[2rem]">
+                            {existingSentInterest.status === 'pending' ? <Clock className="h-6 w-6" /> : null}
                             Interest {existingSentInterest.status.toUpperCase()}
                           </Button>
                           {existingSentInterest.status === 'pending' && (
-                            <Button variant="ghost" className="text-destructive h-10 gap-2" onClick={handleWithdrawInterest}>
+                            <Button variant="ghost" className="text-destructive h-12 gap-2 font-bold hover:bg-destructive/5" onClick={handleWithdrawInterest}>
                               <Trash2 className="h-4 w-4" /> Withdraw Request
                             </Button>
                           )}
                         </div>
                       ) : existingReceivedInterest ? (
                         <Link href="/interests" className="flex-1">
-                          <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white shadow-lg">
+                          <Button className="h-16 w-full gap-3 text-lg font-bold bg-primary text-white shadow-xl rounded-[2rem]">
                             {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : 'View Interaction'}
                           </Button>
                         </Link>
@@ -311,16 +357,16 @@ export default function ProfileDetailPage() {
                         <Button 
                           onClick={handleSendInterest} 
                           disabled={isSending || !canInteract}
-                          className="h-14 flex-1 gap-2 text-lg font-bold bg-secondary text-primary-foreground shadow-lg hover:shadow-xl transition-all"
+                          className="h-16 flex-1 gap-3 text-xl font-bold bg-secondary text-primary-foreground shadow-2xl hover:shadow-primary/30 transition-all rounded-[2rem] active:scale-95"
                         >
-                          <Heart className="h-5 w-5" /> Send Interest
+                          <Heart className="h-6 w-6" /> Send Interest
                         </Button>
                       )}
                       
                       {(isMatched || canChat || isAdmin) && (
-                        <Link href={canChat ? "/messages" : "/membership"} className={!canChat ? "opacity-70" : ""}>
-                          <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-2">
-                            {canChat ? <MessageSquare className="h-6 w-6" /> : <Lock className="h-6 w-6 text-muted-foreground" />}
+                        <Link href={canChat ? "/messages" : "/membership"}>
+                          <Button variant="outline" className="h-16 w-16 rounded-[2rem] border-2 shadow-xl bg-white hover:bg-muted transition-all">
+                            {canChat ? <MessageSquare className="h-7 w-7" /> : <Lock className="h-7 w-7 text-muted-foreground" />}
                           </Button>
                         </Link>
                       )}
@@ -331,68 +377,116 @@ export default function ProfileDetailPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-3">
-            {isAdmin && (
-              <Badge className="mb-4 bg-primary text-white border-none font-bold">ADMIN TESTING MODE ACTIVE</Badge>
-            )}
-            <div className="mb-8 flex flex-col items-start gap-4">
-              <div className="flex flex-wrap items-center gap-4">
-                <h1 className="text-5xl font-bold font-headline">{profile.fullName}, {profile.age}</h1>
-                <Badge variant="outline" className="h-8 border-primary/20 bg-primary/5 px-4 text-sm text-primary">{profile.sect}</Badge>
+          {/* Details Section */}
+          <div className="lg:col-span-3 space-y-12">
+            <div>
+              {isAdmin && (
+                <Badge className="mb-6 bg-primary text-white border-none font-bold py-1.5 px-4 rounded-xl shadow-lg">SYSTEM ADMINISTRATOR ACCESS</Badge>
+              )}
+              <div className="mb-8 flex flex-col items-start gap-4">
+                <div className="flex flex-wrap items-center gap-6">
+                  <h1 className="text-5xl md:text-7xl font-bold font-headline text-primary tracking-tight">{profile.fullName}, {profile.age}</h1>
+                  <Badge variant="outline" className="h-10 border-primary/20 bg-primary/5 px-6 text-base font-bold text-primary rounded-2xl">{profile.sect}</Badge>
+                </div>
+                <ActivityStatus lastActiveAt={profile.lastActiveAt} className="mt-2 bg-white px-4 py-1.5 rounded-full shadow-sm border border-border/50" />
               </div>
-              <ActivityStatus lastActiveAt={profile.lastActiveAt} className="mt-2 px-1" />
+
+              {/* AI Compatibility Score Card */}
+              {!isSelf && (
+                <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] bg-white overflow-hidden rounded-[3rem] animate-fade-in">
+                  <CardHeader className="p-10 pb-6 flex flex-row items-center justify-between">
+                    <CardTitle className="text-2xl font-headline text-primary flex items-center gap-3">
+                      <Sparkles className="h-8 w-8 text-secondary" /> AI Compatibility
+                    </CardTitle>
+                    {loadingAi ? (
+                      <Loader2 className="h-6 w-6 animate-spin text-primary opacity-30" />
+                    ) : aiScore && (
+                      <div className="relative flex items-center justify-center">
+                        <svg className="h-16 w-16 -rotate-90">
+                           <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
+                           <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="175.9" strokeDashoffset={175.9 - (175.9 * aiScore.score) / 100} className="text-secondary transition-all duration-1000" />
+                        </svg>
+                        <span className="absolute text-sm font-bold text-primary">{aiScore.score}%</span>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-10 pt-4">
+                    {loadingAi ? (
+                      <div className="flex flex-col items-center gap-4 py-6">
+                        <div className="h-10 w-full bg-muted/40 animate-pulse rounded-2xl" />
+                        <div className="h-10 w-2/3 bg-muted/30 animate-pulse rounded-2xl" />
+                      </div>
+                    ) : aiScore ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-3">
+                          {aiScore.reasons.map((reason, idx) => (
+                            <div key={idx} className="flex items-center gap-3 bg-accent/30 px-5 py-3 rounded-2xl border border-primary/5">
+                              <CheckCircle2 className="h-4 w-4 text-secondary shrink-0" />
+                              <p className="text-sm font-medium text-primary/80">{reason}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.3em] mt-6 flex items-center gap-2">
+                           <TrendingUp className="h-3 w-3" /> Predictive compatibility analysis for marriage
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-4 py-6 text-muted-foreground opacity-50">
+                        <AlertCircle className="h-6 w-6" />
+                        <p className="text-sm font-medium">Complete your profile preferences to see compatibility insights.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
-            <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Location</span>
-                <p className="font-medium text-sm">{profile.city}, {profile.country}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Marital Status</span>
-                <p className="font-medium text-sm">{profile.maritalStatus || "Single"}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Education</span>
-                <p className="font-medium text-sm">{profile.education}</p>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Occupation</span>
-                <p className="font-medium text-sm">{profile.occupation}</p>
-              </div>
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+               {[
+                { label: "Location", val: `${profile.city}, ${profile.country}`, icon: "📍" },
+                { label: "Marital Status", val: profile.maritalStatus || "Single", icon: "💍" },
+                { label: "Education", val: profile.education || "Professional Degree", icon: "🎓" },
+                { label: "Occupation", val: profile.occupation || "Independent Professional", icon: "💼" }
+               ].map((item, i) => (
+                 <div key={i} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-border/40 hover:scale-105 transition-transform">
+                   <span className="text-2xl mb-3 block">{item.icon}</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">{item.label}</span>
+                   <p className="font-bold text-primary leading-snug">{item.val}</p>
+                 </div>
+               ))}
             </div>
 
-            <section className="mb-12">
-              <h3 className="mb-4 text-2xl font-bold font-headline border-b pb-2">About Me</h3>
-              <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
-                {profile.about || "This member has not written a bio yet."}
+            <section>
+              <h3 className="mb-6 text-3xl font-bold font-headline text-primary border-b-2 border-primary/10 pb-4">Personal Narrative</h3>
+              <p className="text-xl leading-relaxed text-muted-foreground/80 whitespace-pre-wrap font-medium">
+                {profile.about || "This member is currently finalizing their personal introduction. Check back soon for more deep insights into their values and aspirations."}
               </p>
             </section>
 
-            <section className="mb-12">
-              <h3 className="mb-6 text-2xl font-bold font-headline border-b pb-2 flex items-center gap-2">
-                <Phone className="h-6 w-6 text-primary" /> Contact Information
+            <section>
+              <h3 className="mb-8 text-3xl font-bold font-headline text-primary border-b-2 border-primary/10 pb-4 flex items-center gap-4">
+                <Phone className="h-8 w-8" /> Connection Details
               </h3>
               {hasContactAccess ? (
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4 transition-all hover:shadow-md">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Phone className="h-6 w-6" /></div>
-                    <div><p className="text-[10px] font-bold text-muted-foreground">MOBILE</p><p className="font-bold">{profile.mobileNumber}</p></div>
+                <div className="grid gap-8 md:grid-cols-2">
+                  <div className="rounded-[2.5rem] bg-white p-10 shadow-2xl border-none flex items-center gap-6 group hover:bg-muted/50 transition-all">
+                    <div className="h-16 w-16 rounded-[1.5rem] bg-primary/10 text-primary flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"><Phone className="h-8 w-8" /></div>
+                    <div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Direct Mobile</p><p className="text-2xl font-bold text-primary font-headline">{profile.mobileNumber}</p></div>
                   </div>
                   {profile.whatsAppNumber && (
-                    <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4 transition-all hover:shadow-md">
-                      <div className="h-12 w-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center"><MessageCircle className="h-6 w-6" /></div>
-                      <div><p className="text-[10px] font-bold text-muted-foreground">WHATSAPP</p><p className="font-bold">{profile.whatsAppNumber}</p></div>
+                    <div className="rounded-[2.5rem] bg-white p-10 shadow-2xl border-none flex items-center gap-6 group hover:bg-muted/50 transition-all">
+                      <div className="h-16 w-16 rounded-[1.5rem] bg-green-50 text-green-600 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"><MessageCircle className="h-8 w-8" /></div>
+                      <div><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">WhatsApp Verified</p><p className="text-2xl font-bold text-green-700 font-headline">{profile.whatsAppNumber}</p></div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="rounded-3xl bg-muted/30 border-2 border-dashed border-border p-10 text-center">
-                  <Lock className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-lg font-bold mb-2">Details Locked</p>
-                  <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Upgrade to Gold+ to unlock direct contact information and start your journey with intention.</p>
-                  <Link href="/membership"><Button className="gap-2 px-8 h-12 font-bold shadow-lg"><Crown className="h-4 w-4" /> Upgrade Now</Button></Link>
-                </div>
+                <Card className="rounded-[3.5rem] bg-muted/20 border-4 border-dashed border-border/50 p-16 text-center shadow-inner">
+                  <div className="h-24 w-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl"><Lock className="h-12 w-12 text-primary/30" /></div>
+                  <h4 className="text-3xl font-headline font-bold mb-4 text-primary">Sacred Boundary</h4>
+                  <p className="text-muted-foreground text-lg mb-10 leading-relaxed max-w-sm mx-auto font-medium">Direct contact information is shared exclusively with verified **Gold & Premium** members to ensure a safe and respectful environment.</p>
+                  <Link href="/membership"><Button className="h-16 px-12 gap-3 text-xl font-bold shadow-2xl rounded-[2rem] bg-primary hover:scale-105 transition-transform"><Crown className="h-6 w-6 text-secondary" /> Access Direct Contact</Button></Link>
+                </Card>
               )}
             </section>
           </div>
