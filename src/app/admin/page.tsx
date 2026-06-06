@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
 
@@ -64,7 +65,7 @@ export default function AdminDashboard() {
 
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  // Security: Redirect non-admins
+  // Security: Redirect non-admins to dashboard immediately
   useEffect(() => {
     if (!authLoading && !profileLoading) {
       if (!user || profile?.role !== "admin") {
@@ -221,6 +222,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // Final gate to prevent flash of content
   if (!user || profile?.role !== "admin") return null;
 
   return (
