@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth, useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -69,7 +69,7 @@ export default function LoginPage() {
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(userRef, initialProfile, { merge: true })
+        await setDoc(userDocRef, initialProfile, { merge: true })
           .catch(async (e) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
               path: userRef.path,
