@@ -104,30 +104,33 @@ export default function DashboardPage() {
             lifestyle: d.data().lifestyle || 'Moderate',
             city: d.data().city || '',
             maritalStatus: d.data().maritalStatus || '',
-            age: d.data().age || 25,
+            age: Number(d.data().age) || 25,
           })) as any[];
 
         if (availableProfiles.length > 0) {
           const result = await intelligentMatchmakerSuggestions({
             userProfile: {
-              sect: profile.sect,
-              education: profile.education,
+              sect: profile.sect || 'Other',
+              education: profile.education || 'N/A',
               lifestyle: profile.lifestyle || "Moderate",
-              city: profile.city,
-              maritalStatus: profile.maritalStatus,
-              age: profile.age
+              city: profile.city || 'N/A',
+              maritalStatus: profile.maritalStatus || 'Single',
+              age: Number(profile.age) || 25
             },
             availableProfiles
           });
           setAiSuggestions(result);
+        } else {
+          setAiSuggestions({ suggestions: [] });
         }
-      } catch (err) {
+      } catch (err: any) {
+        console.error("AI Matchmaking Error:", err);
         setAiError("AI suggestions are temporarily unavailable.");
       } finally {
         setLoadingSuggestions(false);
       }
     }
-    if (profile && profile.status === 'approved' && !aiSuggestions) fetchSuggestions();
+    if (profile && profile.status === 'approved' && !aiSuggestions && !loadingSuggestions) fetchSuggestions();
   }, [profile?.id, profile?.status, db, user]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

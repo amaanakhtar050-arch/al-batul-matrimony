@@ -16,7 +16,7 @@ const UserProfileSchema = z.object({
   lifestyle: z.string().describe('The lifestyle description of the user.'),
   city: z.string().describe('The city where the user resides.'),
   maritalStatus: z.string().describe('The marital status of the user.'),
-  age: z.number().describe('The age of the user.').int().positive(),
+  age: z.number().describe('The age of the user.').int(),
 });
 
 const AvailableProfileSchema = z.object({
@@ -26,7 +26,7 @@ const AvailableProfileSchema = z.object({
   lifestyle: z.string().describe('The lifestyle description of the profile.'),
   city: z.string().describe('The city where the profile resides.'),
   maritalStatus: z.string().describe('The marital status of the profile.'),
-  age: z.number().describe('The age of the profile.').int().positive(),
+  age: z.number().describe('The age of the profile.').int(),
 });
 
 const IntelligentMatchmakerSuggestionsInputSchema = z.object({
