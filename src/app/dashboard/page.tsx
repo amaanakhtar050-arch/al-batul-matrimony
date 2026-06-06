@@ -22,7 +22,8 @@ import {
   Loader2,
   Eye,
   User,
-  AlertCircle
+  AlertCircle,
+  ShieldX
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
@@ -35,8 +36,6 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { compressImage, dataURLToBlob } from "@/lib/image-utils";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
@@ -309,7 +308,7 @@ export default function DashboardPage() {
                     { href: "/setup-profile", icon: Edit2, label: "My Gallery", color: "bg-primary/5 text-primary" },
                     { href: `/profiles/${user.uid}`, icon: Eye, label: "Live Preview", color: "bg-secondary/5 text-secondary-foreground" },
                     { href: "/membership", icon: Crown, label: "Subscription", color: "bg-orange-50 text-orange-600" },
-                    { href: "/discover", icon: Search, label: "Deep Search", color: "bg-blue-50 text-blue-600" }
+                    { href: "/settings/blocked-users", icon: ShieldX, label: "Privacy list", color: "bg-destructive/5 text-destructive" }
                   ].map((act, i) => (
                     <Link key={i} href={act.href} className="group h-full">
                       <Card className="hover:bg-white transition-all cursor-pointer border-none shadow-[0_20px_40px_rgba(0,0,0,0.04)] h-full flex flex-col items-center justify-center p-10 text-center gap-6 rounded-[3rem] hover:border-primary/5 hover:-translate-y-2 group">
