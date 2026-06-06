@@ -20,7 +20,8 @@ import {
   User,
   Loader2,
   Clock,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
@@ -32,6 +33,7 @@ import { format, isToday, isYesterday } from "date-fns";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
+import { ActivityStatus } from "@/components/profile/ActivityStatus";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
@@ -72,6 +74,18 @@ export default function MessagesPage() {
       return timeB - timeA;
     });
   }, [sentMatches, receivedMatches]);
+
+  const activePartnerId = useMemo(() => {
+    if (!activeInterest || !user) return null;
+    return activeInterest.fromUserId === user.uid ? activeInterest.toUserId : activeInterest.fromUserId;
+  }, [activeInterest, user]);
+
+  const activePartnerRef = useMemoFirebase(() => {
+    if (!db || !activePartnerId) return null;
+    return doc(db, 'users', activePartnerId);
+  }, [db, activePartnerId]);
+
+  const { data: activePartner } = useDoc(activePartnerRef);
 
   const messagesQuery = useMemoFirebase(() => { if (!db || !activeInterest) return null; return query(collection(db, "interests", activeInterest.id, "messages"), orderBy("timestamp", "asc")); }, [db, activeInterest]);
   const { data: messages, loading: loadingMessages } = useCollection(messagesQuery);
@@ -228,19 +242,16 @@ export default function MessagesPage() {
                 <div className="p-6 md:p-8 bg-white/80 border-b flex items-center justify-between">
                   <div className="flex items-center gap-5">
                      <Button variant="ghost" size="icon" className="md:hidden h-12 w-12 rounded-2xl" onClick={() => setActiveInterest(null)}><ChevronLeft className="h-7 w-7" /></Button>
-                     <UserAvatar userId={activeInterest.fromUserId === user?.uid ? activeInterest.toUserId : activeInterest.fromUserId} className="h-16 w-16 border-2 border-primary/10 shadow-xl" />
+                     <UserAvatar userId={activePartnerId!} className="h-16 w-16 border-2 border-primary/10 shadow-xl" />
                      <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-xl md:text-2xl font-headline text-primary">{activeInterest.fromUserId === user?.uid ? activeInterest.toUserName : activeInterest.fromUserName}</p>
+                          <p className="font-bold text-xl md:text-2xl font-headline text-primary">{activePartner?.fullName || "Member"}</p>
                           <ShieldCheck className="h-5 w-5 text-secondary" />
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Verified Match</span>
-                        </div>
+                        <ActivityStatus lastActiveAt={activePartner?.lastActiveAt} className="mt-1" />
                      </div>
                   </div>
-                  <Link href={`/profiles/${activeInterest.fromUserId === user?.uid ? activeInterest.toUserId : activeInterest.fromUserId}`}>
+                  <Link href={`/profiles/${activePartnerId}`}>
                     <Button variant="outline" size="lg" className="font-bold h-12 px-8 rounded-2xl border-2 hover:bg-primary hover:text-white transition-all">Profile</Button>
                   </Link>
                 </div>

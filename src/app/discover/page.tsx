@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -284,7 +283,8 @@ export default function DiscoverPage() {
                   maritalStatus: profile.maritalStatus || "Single",
                   imageUrl: profile.photoUrl || "",
                   imageHint: "Muslim professional",
-                  isVerified: profile.status === 'approved'
+                  isVerified: profile.status === 'approved',
+                  lastActiveAt: profile.lastActiveAt
                 }} 
               />
             ))}

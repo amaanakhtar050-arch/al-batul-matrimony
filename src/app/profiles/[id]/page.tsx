@@ -38,6 +38,7 @@ import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
+import { ActivityStatus } from "@/components/profile/ActivityStatus";
 
 /**
  * A helper component to display a user's avatar fetching the latest photo from Firestore.
@@ -334,9 +335,12 @@ export default function ProfileDetailPage() {
             {isAdmin && (
               <Badge className="mb-4 bg-primary text-white border-none font-bold">ADMIN TESTING MODE ACTIVE</Badge>
             )}
-            <div className="mb-8 flex flex-wrap items-center gap-4">
-              <h1 className="text-5xl font-bold font-headline">{profile.fullName}, {profile.age}</h1>
-              <Badge variant="outline" className="h-8 border-primary/20 bg-primary/5 px-4 text-sm text-primary">{profile.sect}</Badge>
+            <div className="mb-8 flex flex-col items-start gap-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <h1 className="text-5xl font-bold font-headline">{profile.fullName}, {profile.age}</h1>
+                <Badge variant="outline" className="h-8 border-primary/20 bg-primary/5 px-4 text-sm text-primary">{profile.sect}</Badge>
+              </div>
+              <ActivityStatus lastActiveAt={profile.lastActiveAt} className="mt-2 px-1" />
             </div>
 
             <div className="mb-12 grid grid-cols-2 gap-8 md:grid-cols-4">

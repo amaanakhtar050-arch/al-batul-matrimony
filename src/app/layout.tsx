@@ -1,8 +1,8 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { Toaster } from "@/components/ui/toaster";
+import { ActivityTracker } from '@/components/layout/ActivityTracker';
 
 export const metadata: Metadata = {
   title: 'Al Batul Matrimony | Trusted Muslim Matchmaking',
@@ -23,6 +23,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
+          <ActivityTracker />
           {children}
           <Toaster />
         </FirebaseClientProvider>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User, Users, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { ActivityStatus } from "./ActivityStatus";
 
 interface ProfileCardProps {
   profile: {
@@ -19,6 +20,7 @@ interface ProfileCardProps {
     imageUrl: string;
     imageHint: string;
     isVerified: boolean;
+    lastActiveAt?: any;
   };
 }
 
@@ -49,6 +51,9 @@ export function ProfileCard({ profile }: ProfileCardProps) {
                 <span className="text-[11px] font-bold uppercase tracking-widest">Verified</span>
               </Badge>
             )}
+            <div className="bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+              <ActivityStatus lastActiveAt={profile.lastActiveAt} className="text-white" />
+            </div>
           </div>
 
           <div className="absolute right-6 top-6 z-10">
