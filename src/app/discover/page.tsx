@@ -117,15 +117,15 @@ export default function DiscoverPage() {
   const isAdmin = profile?.role === 'admin';
   if (!profile || (profile.status !== 'approved' && !isAdmin)) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-x-hidden">
         <Navbar />
         <main className="container mx-auto flex items-center justify-center px-4 py-20">
-           <div className="text-center max-w-md">
+           <div className="text-center max-w-md w-full">
              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/50 text-primary">
                 <Lock className="h-10 w-10" />
              </div>
-             <h1 className="text-3xl font-bold mb-4 font-headline text-primary">Access Restricted</h1>
-             <p className="text-muted-foreground mb-8">
+             <h1 className="text-2xl md:text-3xl font-bold mb-4 font-headline text-primary">Access Restricted</h1>
+             <p className="text-muted-foreground mb-8 px-4">
                {!profile 
                  ? "You must complete your profile before you can discover potential matches." 
                  : profile.status === 'rejected' 
@@ -133,11 +133,11 @@ export default function DiscoverPage() {
                    : "Your profile is currently under review by our admin team."}
              </p>
              {!profile ? (
-                <Link href="/setup-profile">
+                <Link href="/setup-profile" className="px-4 block">
                   <Button size="lg" className="w-full h-12 font-bold shadow-lg">Complete Profile Now</Button>
                 </Link>
              ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 px-4">
                   <Link href="/setup-profile">
                     <Button variant="outline" size="lg" className="w-full h-12">Edit Profile Details</Button>
                   </Link>
@@ -153,20 +153,20 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 overflow-x-hidden">
       <Navbar />
       
       <main className="container mx-auto px-4 py-8 lg:px-8 max-w-7xl">
-        <header className="mb-12">
+        <header className="mb-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
-              <h1 className="text-4xl font-bold font-headline text-primary tracking-tight">Search Members</h1>
-              <p className="text-muted-foreground mt-1 font-medium">Find your life partner among verified profiles.</p>
+              <h1 className="text-3xl md:text-4xl font-bold font-headline text-primary tracking-tight">Search Members</h1>
+              <p className="text-muted-foreground mt-1 font-medium text-sm md:text-base">Find your life partner among verified profiles.</p>
             </div>
             <Button 
               variant={isFilterVisible ? "secondary" : "outline"}
               onClick={() => setIsFilterVisible(!isFilterVisible)}
-              className="gap-2 font-bold h-12 rounded-2xl shadow-sm self-start md:self-center"
+              className="gap-2 font-bold h-12 rounded-2xl shadow-sm self-start md:self-center w-full md:w-auto"
             >
               <Filter className="h-5 w-5" />
               Advanced Filters {activeFilterCount > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white text-[10px]">{activeFilterCount}</Badge>}
@@ -174,10 +174,10 @@ export default function DiscoverPage() {
           </div>
 
           <div className="relative group">
-            <Search className="absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-5 top-1/2 h-5 w-5 md:h-6 md:w-6 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Search by name, ID, or profession..." 
-              className="h-16 pl-14 pr-6 text-lg rounded-[2rem] border-none shadow-2xl bg-white focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+              className="h-14 md:h-16 pl-12 md:pl-14 pr-6 text-base md:text-lg rounded-[1.5rem] md:rounded-[2rem] border-none shadow-2xl bg-white focus-visible:ring-2 focus-visible:ring-primary/20 transition-all w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -185,53 +185,53 @@ export default function DiscoverPage() {
         </header>
 
         {isFilterVisible && (
-          <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
-            <Card className="rounded-[2.5rem] bg-white p-8 shadow-2xl border-none relative overflow-hidden">
+          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+            <Card className="rounded-2xl md:rounded-[2.5rem] bg-white p-6 md:p-8 shadow-2xl border-none relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/20"></div>
-              <div className="flex items-center justify-between mb-10">
-                <h3 className="text-2xl font-bold font-headline flex items-center gap-2 text-primary">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl md:text-2xl font-bold font-headline flex items-center gap-2 text-primary">
                    <UserSearch className="h-6 w-6" /> Detailed Filters
                 </h3>
                 <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground hover:text-destructive font-bold">
-                  <X className="h-4 w-4 mr-2" /> Reset Filters
+                  <X className="h-4 w-4 mr-1" /> Reset
                 </Button>
               </div>
 
-              <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <MapPin className="h-3 w-3" /> City
                   </label>
-                  <Input placeholder="Search city..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
+                  <Input placeholder="Search city..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <MapPin className="h-3 w-3" /> State
                   </label>
-                  <Input placeholder="Search state..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} />
+                  <Input placeholder="Search state..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <Briefcase className="h-3 w-3" /> Profession
                   </label>
-                  <Input placeholder="Doctor, Engineer..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} />
+                  <Input placeholder="Doctor, Engineer..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <GraduationCap className="h-3 w-3" /> Education
                   </label>
-                  <Input placeholder="Degree, Major..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={educationFilter} onChange={(e) => setEducationFilter(e.target.value)} />
+                  <Input placeholder="Degree, Major..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={educationFilter} onChange={(e) => setEducationFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <Hash className="h-3 w-3" /> Member ID
                   </label>
-                  <Input placeholder="ID prefix..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={memberIdFilter} onChange={(e) => setMemberIdFilter(e.target.value)} />
+                  <Input placeholder="ID prefix..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={memberIdFilter} onChange={(e) => setMemberIdFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Religious Sect</label>
                   <Select onValueChange={setSectFilter} value={sectFilter}>
-                    <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Sects" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Sects" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Sects</SelectItem>
                       {SECT_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -241,7 +241,7 @@ export default function DiscoverPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Marital Status</label>
                   <Select onValueChange={setMaritalStatusFilter} value={maritalStatusFilter}>
-                    <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       {MARITAL_STATUS_OPTIONS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
@@ -250,7 +250,7 @@ export default function DiscoverPage() {
                 </div>
               </div>
 
-              <div className="mt-12 max-w-2xl mx-auto space-y-6">
+              <div className="mt-10 max-w-2xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Age Range</label>
                   <span className="text-sm font-bold text-primary bg-primary/10 px-4 py-1.5 rounded-full">{ageRange[0]} — {ageRange[1]} years</span>
@@ -262,13 +262,13 @@ export default function DiscoverPage() {
         )}
 
         {profilesLoading ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-[480px] rounded-[2.5rem] bg-muted animate-pulse" />
+              <div key={i} className="h-[400px] md:h-[480px] rounded-2xl md:rounded-[2.5rem] bg-muted animate-pulse" />
             ))}
           </div>
         ) : filteredProfiles.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProfiles.map((profile: any) => (
               <ProfileCard 
                 key={profile.id} 
@@ -290,13 +290,13 @@ export default function DiscoverPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-32 text-center bg-white rounded-[3rem] shadow-sm border border-border/40">
-            <div className="h-24 w-24 rounded-[2rem] bg-muted/30 flex items-center justify-center mb-8">
-               <Search className="h-12 w-12 text-muted-foreground/20" />
+          <div className="flex flex-col items-center justify-center py-20 md:py-32 text-center bg-white rounded-2xl md:rounded-[3rem] shadow-sm border border-border/40 px-4">
+            <div className="h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-muted/30 flex items-center justify-center mb-6 md:mb-8">
+               <Search className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/20" />
             </div>
-            <h3 className="text-2xl font-headline font-bold text-primary mb-2">No results found</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto mb-10 font-medium">Try broadening your filters or using different keywords to find more potential matches.</p>
-            <Button variant="outline" className="font-bold h-12 px-8 rounded-2xl" onClick={resetFilters}>Clear All Filters</Button>
+            <h3 className="text-xl md:text-2xl font-headline font-bold text-primary mb-2">No results found</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto mb-8 md:mb-10 font-medium text-sm md:text-base">Try broadening your filters or using different keywords to find more potential matches.</p>
+            <Button variant="outline" className="font-bold h-12 px-8 rounded-2xl w-full sm:w-auto" onClick={resetFilters}>Clear All Filters</Button>
           </div>
         )}
       </main>

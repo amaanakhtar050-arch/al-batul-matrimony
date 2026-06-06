@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -173,20 +172,20 @@ export default function AdminDashboard() {
   if (!user || !isActuallyAdmin) return <div className="flex h-screen items-center justify-center p-4 text-center">Unauthorized</div>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Navbar />
       <main className="container mx-auto px-4 py-8 lg:px-8 max-w-7xl">
-        <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-4xl font-bold font-headline text-primary">Administration</h1>
+            <h1 className="text-3xl md:text-4xl font-bold font-headline text-primary">Administration</h1>
             <p className="text-muted-foreground text-sm font-medium">Platform control center.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Search members..." 
-                className="pl-9 h-11 rounded-xl bg-white border-none shadow-sm w-64" 
+                className="pl-9 h-11 rounded-xl bg-white border-none shadow-sm w-full" 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
               />
@@ -194,50 +193,52 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <Tabs defaultValue="payments">
-          <TabsList className="mb-8 p-1 bg-white/50 rounded-2xl border border-white/40 h-14">
-            <TabsTrigger value="payments" className="rounded-xl px-6 font-bold h-11">Payments</TabsTrigger>
-            <TabsTrigger value="approvals" className="rounded-xl px-6 font-bold h-11">Verifications ({pendingVerifications?.length || 0})</TabsTrigger>
-            <TabsTrigger value="users" className="rounded-xl px-6 font-bold h-11">Members</TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-xl px-6 font-bold h-11">Settings</TabsTrigger>
+        <Tabs defaultValue="payments" className="w-full">
+          <TabsList className="mb-8 p-1 bg-white/50 rounded-2xl border border-white/40 h-auto flex-wrap justify-start">
+            <TabsTrigger value="payments" className="rounded-xl px-4 md:px-6 font-bold h-11 flex-1 md:flex-none">Payments</TabsTrigger>
+            <TabsTrigger value="approvals" className="rounded-xl px-4 md:px-6 font-bold h-11 flex-1 md:flex-none">Verifications ({pendingVerifications?.length || 0})</TabsTrigger>
+            <TabsTrigger value="users" className="rounded-xl px-4 md:px-6 font-bold h-11 flex-1 md:flex-none">Members</TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-xl px-4 md:px-6 font-bold h-11 flex-1 md:flex-none">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payments">
-            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>UTR</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments?.map((payment: any) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-bold">{payment.userName}</TableCell>
-                      <TableCell><Badge variant="outline" className="bg-primary/5 border-none">{payment.plan}</Badge></TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{payment.transactionId}</TableCell>
-                      <TableCell className="font-bold">₹{payment.amount}</TableCell>
-                      <TableCell><Badge variant={payment.status === 'approved' ? 'default' : 'secondary'}>{payment.status.toUpperCase()}</Badge></TableCell>
-                      <TableCell className="text-right">
-                        {payment.status === 'pending' && (
-                          <Button size="sm" className="bg-primary font-bold h-9 rounded-xl px-5" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>Approve</Button>
-                        )}
-                      </TableCell>
+            <Card className="border-none shadow-sm rounded-2xl md:rounded-[2rem] overflow-hidden bg-white">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>UTR</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {payments?.map((payment: any) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-bold whitespace-nowrap">{payment.userName}</TableCell>
+                        <TableCell><Badge variant="outline" className="bg-primary/5 border-none">{payment.plan}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{payment.transactionId}</TableCell>
+                        <TableCell className="font-bold">₹{payment.amount}</TableCell>
+                        <TableCell><Badge variant={payment.status === 'approved' ? 'default' : 'secondary'}>{payment.status.toUpperCase()}</Badge></TableCell>
+                        <TableCell className="text-right">
+                          {payment.status === 'pending' && (
+                            <Button size="sm" className="bg-primary font-bold h-9 rounded-xl px-5" onClick={() => handleApprovePayment(payment.id, payment.userId, payment.plan)}>Approve</Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
           </TabsContent>
 
           <TabsContent value="settings">
-             <div className="grid gap-8 md:grid-cols-2">
-                <Card className="border-none shadow-sm rounded-[2.5rem] bg-white p-8">
+             <div className="grid gap-8 lg:grid-cols-2">
+                <Card className="border-none shadow-sm rounded-2xl md:rounded-[2.5rem] bg-white p-6 md:p-8">
                   <CardHeader className="p-0 mb-8">
                     <CardTitle className="text-2xl font-headline flex items-center gap-3">
                       <Globe className="h-6 w-6 text-primary" /> Global Configuration
@@ -267,87 +268,90 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-sm rounded-[2.5rem] bg-primary text-primary-foreground p-10 flex flex-col justify-center">
-                   <Zap className="h-12 w-12 text-secondary mb-6" />
-                   <h3 className="text-3xl font-headline font-bold mb-4">Platform Stats</h3>
+                <Card className="border-none shadow-sm rounded-2xl md:rounded-[2.5rem] bg-primary text-primary-foreground p-8 md:p-10 flex flex-col justify-center">
+                   <Zap className="h-10 w-10 md:h-12 md:w-12 text-secondary mb-6" />
+                   <h3 className="text-2xl md:text-3xl font-headline font-bold mb-4">Platform Stats</h3>
                    <div className="space-y-4">
                       <div className="flex justify-between items-center pb-4 border-b border-white/20">
                          <span className="opacity-70 font-medium">Total Members</span>
-                         <span className="text-2xl font-bold">{allUsers?.length || 0}</span>
+                         <span className="text-xl md:text-2xl font-bold">{allUsers?.length || 0}</span>
                       </div>
                       <div className="flex justify-between items-center pb-4 border-b border-white/20">
                          <span className="opacity-70 font-medium">Pending Payments</span>
-                         <span className="text-2xl font-bold">{payments?.filter((p:any) => p.status === 'pending').length || 0}</span>
+                         <span className="text-xl md:text-2xl font-bold">{payments?.filter((p:any) => p.status === 'pending').length || 0}</span>
                       </div>
                       <div className="flex justify-between items-center">
                          <span className="opacity-70 font-medium">Pending Approvals</span>
-                         <span className="text-2xl font-bold">{pendingVerifications?.length || 0}</span>
+                         <span className="text-xl md:text-2xl font-bold">{pendingVerifications?.length || 0}</span>
                       </div>
                    </div>
                 </Card>
              </div>
           </TabsContent>
 
-          {/* Other tabs remain largely the same but with refined 2026 styling */}
           <TabsContent value="approvals">
-            <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
-               <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Docs</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingVerifications?.map((user: any) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-bold text-lg">{user.fullName}</TableCell>
-                      <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl">Review ID Proof</Button></DialogTrigger>
-                          <DialogContent className="max-w-3xl rounded-[3rem] p-8">
-                             <DialogHeader><DialogTitle className="text-2xl font-headline">Verification Document</DialogTitle></DialogHeader>
-                             <div className="relative aspect-video w-full mt-4 overflow-hidden rounded-2xl">
-                               <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" fill className="object-contain" />
-                             </div>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" className="bg-green-600 font-bold h-9 rounded-xl" onClick={() => updateDoc(doc(db!, "users", user.id), { status: 'approved', updatedAt: serverTimestamp() })}>Approve</Button>
-                      </TableCell>
+            <Card className="border-none shadow-sm rounded-2xl md:rounded-[2rem] overflow-hidden bg-white">
+               <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Docs</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingVerifications?.map((user: any) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-bold text-lg whitespace-nowrap">{user.fullName}</TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl">Review ID Proof</Button></DialogTrigger>
+                            <DialogContent className="max-w-[90vw] md:max-w-3xl rounded-2xl md:rounded-[3rem] p-4 md:p-8">
+                               <DialogHeader><DialogTitle className="text-xl md:text-2xl font-headline">Verification Document</DialogTitle></DialogHeader>
+                               <div className="relative aspect-video w-full mt-4 overflow-hidden rounded-xl">
+                                 <Image src={user.idPhotoUrl || "https://picsum.photos/seed/id/800/600"} alt="ID" fill className="object-contain" />
+                               </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" className="bg-green-600 font-bold h-9 rounded-xl" onClick={() => updateDoc(doc(db!, "users", user.id), { status: 'approved', updatedAt: serverTimestamp() })}>Approve</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+               </div>
             </Card>
           </TabsContent>
 
           <TabsContent value="users">
-             <Card className="border-none shadow-sm rounded-[2rem] overflow-hidden bg-white">
-               <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers?.map((user: any) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-bold">{user.fullName || user.email}</TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize">{user.membership?.plan || 'Free'}</Badge></TableCell>
-                      <TableCell><Badge variant={user.status === 'approved' ? 'default' : 'secondary'}>{user.status.toUpperCase()}</Badge></TableCell>
-                      <TableCell className="text-right">
-                         <Button size="icon" variant="ghost" className="text-destructive h-10 w-10 rounded-xl hover:bg-destructive/10"><Ban className="h-5 w-5" /></Button>
-                      </TableCell>
+             <Card className="border-none shadow-sm rounded-2xl md:rounded-[2rem] overflow-hidden bg-white">
+               <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers?.map((user: any) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-bold whitespace-nowrap">{user.fullName || user.email}</TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{user.membership?.plan || 'Free'}</Badge></TableCell>
+                        <TableCell><Badge variant={user.status === 'approved' ? 'default' : 'secondary'}>{user.status.toUpperCase()}</Badge></TableCell>
+                        <TableCell className="text-right">
+                           <Button size="icon" variant="ghost" className="text-destructive h-10 w-10 rounded-xl hover:bg-destructive/10"><Ban className="h-5 w-5" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+               </div>
             </Card>
           </TabsContent>
         </Tabs>
