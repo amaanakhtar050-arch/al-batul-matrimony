@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Card } from "@/components/ui/card";
 import { Filter, Search, Lock, ShieldCheck, X, UserSearch, Loader2, MapPin, Briefcase, GraduationCap, Hash } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from "@/firebase";
