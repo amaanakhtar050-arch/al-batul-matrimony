@@ -55,6 +55,7 @@ const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
 // BOOTSTRAP ADMINS: These emails are guaranteed admin access
 const SUPER_ADMIN_EMAILS = [
   "amaanakhtar050@gmail.com",
+  "reebaamaanbhangaria@gmail.com",
   "admin@albatul.com"
 ];
 
@@ -81,7 +82,8 @@ export default function AdminDashboard() {
       console.log('[Admin Guard] User:', userEmail);
       console.log('[Admin Guard] Current Role:', currentRole);
 
-      const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail.includes(email.split('@')[0]));
+      // Check if user email is in the super admin list
+      const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail === email.toLowerCase());
       const isActuallyAdmin = currentRole === "admin" || isSuperAdmin;
 
       if (!isActuallyAdmin) {
@@ -253,9 +255,9 @@ export default function AdminDashboard() {
     );
   }
 
-  // Double check role or email for final render
+  // Final render safety check
   const userEmail = user?.email?.toLowerCase() || "";
-  const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail.includes(email.split('@')[0]));
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail === email.toLowerCase());
   const isActuallyAdmin = profile?.role?.toLowerCase() === "admin" || isSuperAdmin;
 
   if (!user || !isActuallyAdmin) {
