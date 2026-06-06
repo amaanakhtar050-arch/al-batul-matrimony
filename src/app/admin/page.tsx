@@ -52,6 +52,12 @@ import { cn } from "@/lib/utils";
 
 const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
 
+// BOOTSTRAP ADMINS: These emails are guaranteed admin access
+const SUPER_ADMIN_EMAILS = [
+  "amaanakhtar050@gmail.com",
+  "admin@albatul.com"
+];
+
 export default function AdminDashboard() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
@@ -66,26 +72,38 @@ export default function AdminDashboard() {
 
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  // SECURITY GUARD: The exact authorization condition is profile?.role === "admin"
+  // SECURITY GUARD & SELF-HEALING ROLE SYSTEM
   useEffect(() => {
-    if (!authLoading && !profileLoading) {
-      const userRole = profile?.role?.toLowerCase();
-      console.log('[Admin Guard] Auth Status:', !!user);
-      console.log('[Admin Guard] User UID:', user?.uid);
-      console.log('[Admin Guard] User Email:', user?.email);
-      console.log('[Admin Guard] Detected Role:', userRole);
+    if (!authLoading && !profileLoading && user && db) {
+      const userEmail = user.email?.toLowerCase() || "";
+      const currentRole = profile?.role?.toLowerCase();
+      
+      console.log('[Admin Guard] User:', userEmail);
+      console.log('[Admin Guard] Current Role:', currentRole);
 
-      // Condition: must be logged in AND have the 'admin' role string in Firestore
-      const isActuallyAdmin = user && userRole === "admin";
+      const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail.includes(email.split('@')[0]));
+      const isActuallyAdmin = currentRole === "admin" || isSuperAdmin;
 
       if (!isActuallyAdmin) {
-        console.warn('[Admin Guard] Access Denied. Redirecting to /dashboard.');
+        console.warn('[Admin Guard] Access Denied. Redirecting...');
         router.replace("/dashboard");
       } else {
         console.log('[Admin Guard] Access Granted.');
+        
+        // SELF-HEALING: If user is a super admin but Firestore role is wrong, fix it now
+        if (isSuperAdmin && currentRole !== "admin" && userProfileRef) {
+          console.log('[Admin Guard] Self-healing role to admin...');
+          updateDoc(userProfileRef, { 
+            role: "admin", 
+            status: "approved",
+            updatedAt: serverTimestamp() 
+          }).then(() => {
+            toast({ title: "Admin Access Initialized", description: "Your account role has been updated to Administrator." });
+          });
+        }
       }
     }
-  }, [user, profile, authLoading, profileLoading, router]);
+  }, [user, profile, authLoading, profileLoading, router, db, userProfileRef, toast]);
 
   const paymentsQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -235,8 +253,12 @@ export default function AdminDashboard() {
     );
   }
 
-  // Final gate to prevent flash of content
-  if (!user || profile?.role?.toLowerCase() !== "admin") {
+  // Double check role or email for final render
+  const userEmail = user?.email?.toLowerCase() || "";
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.some(email => userEmail.includes(email.split('@')[0]));
+  const isActuallyAdmin = profile?.role?.toLowerCase() === "admin" || isSuperAdmin;
+
+  if (!user || !isActuallyAdmin) {
     return (
        <div className="flex flex-col h-screen items-center justify-center p-4 text-center">
           <AlertCircle className="h-12 w-12 text-destructive mb-4" />

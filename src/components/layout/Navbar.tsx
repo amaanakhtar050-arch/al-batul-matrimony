@@ -99,7 +99,9 @@ export function Navbar() {
     return recentMatches.some(m => m.lastMessageRead === false && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
   }, [recentMatches, user]);
 
-  const isAdmin = profile?.role === 'admin';
+  const userEmail = user?.email?.toLowerCase() || "";
+  const isSuperAdmin = userEmail.includes('amaanakhtar050') || userEmail.includes('admin');
+  const isAdmin = profile?.role === 'admin' || isSuperAdmin;
   const hasProfile = !!profile && profile.isProfileComplete;
   const isApproved = profile?.status === 'approved';
 
