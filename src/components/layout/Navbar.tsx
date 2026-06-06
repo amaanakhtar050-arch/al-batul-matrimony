@@ -1,7 +1,8 @@
+
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2 } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -142,6 +143,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/interests", label: "Interests", icon: Heart, restricted: true },
     { href: "/messages", label: "Messages", icon: MessageSquare, restricted: true },
+    { href: "/support", label: "Support", icon: HelpCircle, restricted: false },
   ];
 
   const handleSearchClick = (e: React.MouseEvent) => {

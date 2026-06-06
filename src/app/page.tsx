@@ -1,3 +1,4 @@
+
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Search, ShieldCheck, Heart, Users, Sparkles, ArrowRight } from "lucide-react";
@@ -127,13 +128,13 @@ export default function Home() {
 
       {/* Minimal Footer */}
       <footer className="py-24 text-center">
-        <div className="container mx-auto px-6 lg:px-12">
+        <div className="container mx-auto px-4 lg:px-12">
           <Logo variant="icon" size={60} className="mx-auto mb-10 opacity-30" />
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.6em] mb-12">Al Batul Matrimony &copy; 2026</p>
-          <div className="flex justify-center gap-12 text-sm font-bold text-muted-foreground/60">
-             <Link href="#" className="hover:text-primary transition-colors">Safety</Link>
-             <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
-             <Link href="#" className="hover:text-primary transition-colors">Support</Link>
+          <div className="flex justify-center gap-8 text-sm font-bold text-muted-foreground/60">
+             <Link href="/support" className="hover:text-primary transition-colors">Support</Link>
+             <Link href="/support" className="hover:text-primary transition-colors">Safety</Link>
+             <Link href="/support" className="hover:text-primary transition-colors">Privacy</Link>
           </div>
         </div>
       </footer>
