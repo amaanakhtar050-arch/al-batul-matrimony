@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User, Users } from "lucide-react";
+import { MapPin, GraduationCap, Briefcase, Heart, ShieldCheck, User, Users, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface ProfileCardProps {
@@ -25,65 +25,72 @@ interface ProfileCardProps {
 export function ProfileCard({ profile }: ProfileCardProps) {
   return (
     <Link href={`/profiles/${profile.id}`}>
-      <Card className="group relative h-[450px] overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all hover:-translate-y-2 hover:shadow-primary/20">
+      <Card className="group relative h-[520px] overflow-hidden rounded-[3rem] border-none shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 hover:-translate-y-4 hover:shadow-primary/30">
         <div className="relative h-full w-full bg-muted">
           {profile.imageUrl ? (
             <Image
               src={profile.imageUrl}
               alt={profile.name}
               fill
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
+              className="object-cover transition-transform duration-1000 group-hover:scale-110"
               data-ai-hint={profile.imageHint}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted-foreground/20">
-              <User className="h-24 w-24" />
+              <User className="h-32 w-32" />
             </div>
           )}
           
           {/* Top Overlays */}
-          <div className="absolute left-4 top-4 z-10">
+          <div className="absolute left-6 top-6 z-10 flex flex-col gap-2">
             {profile.isVerified && (
-              <Badge className="bg-white/90 text-primary border-none h-8 px-3 flex items-center gap-1.5 shadow-lg backdrop-blur-md">
+              <Badge className="bg-white/95 text-primary border-none h-10 px-5 flex items-center gap-2 shadow-2xl backdrop-blur-2xl rounded-2xl">
                 <ShieldCheck className="h-4 w-4" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Verified</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">Verified</span>
               </Badge>
             )}
           </div>
 
-          <div className="absolute right-4 top-4 z-10">
-             <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white transition-colors hover:bg-secondary hover:text-white">
-                <Heart className="h-5 w-5" />
+          <div className="absolute right-6 top-6 z-10">
+             <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/40 flex items-center justify-center text-white transition-all hover:bg-secondary hover:text-white hover:scale-110 shadow-2xl">
+                <Heart className="h-6 w-6" />
              </div>
           </div>
           
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+          {/* Dynamic Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
           
-          {/* Bottom Details */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-            <div className="mb-3">
-              <h3 className="text-2xl font-bold font-headline leading-none">{profile.name}, {profile.age}</h3>
-              <p className="text-xs opacity-70 mt-1 font-medium tracking-wide">{profile.sect} Member</p>
+          {/* Detailed Content Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-8 text-white transition-transform duration-500 group-hover:translate-y-[-10px]">
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-1">
+                <h3 className="text-3xl font-bold font-headline leading-tight tracking-tight">{profile.name}, {profile.age}</h3>
+                {profile.isVerified && <Sparkles className="h-5 w-5 text-secondary animate-pulse" />}
+              </div>
+              <p className="text-xs font-bold text-white/70 uppercase tracking-[0.2em]">{profile.sect} Community</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/5">
-                <MapPin className="h-3 w-3 text-secondary" />
-                <span className="text-[10px] font-bold truncate">{profile.city}</span>
+            <div className="grid grid-cols-2 gap-3 mt-4 opacity-90">
+              <div className="flex items-center gap-2.5 bg-white/10 rounded-2xl p-3 backdrop-blur-xl border border-white/10 transition-colors group-hover:bg-white/20">
+                <MapPin className="h-3.5 w-3.5 text-secondary shrink-0" />
+                <span className="text-[11px] font-bold truncate leading-none">{profile.city}</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/5">
-                <Users className="h-3 w-3 text-secondary" />
-                <span className="text-[10px] font-bold truncate">{profile.maritalStatus}</span>
+              <div className="flex items-center gap-2.5 bg-white/10 rounded-2xl p-3 backdrop-blur-xl border border-white/10 transition-colors group-hover:bg-white/20">
+                <Users className="h-3.5 w-3.5 text-secondary shrink-0" />
+                <span className="text-[11px] font-bold truncate leading-none">{profile.maritalStatus}</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/5">
-                <GraduationCap className="h-3 w-3 text-secondary" />
-                <span className="text-[10px] font-bold truncate">{profile.education}</span>
+              <div className="flex items-center gap-2.5 bg-white/10 rounded-2xl p-3 backdrop-blur-xl border border-white/10 transition-colors group-hover:bg-white/20">
+                <GraduationCap className="h-3.5 w-3.5 text-secondary shrink-0" />
+                <span className="text-[11px] font-bold truncate leading-none">{profile.education.split(' ')[0]}</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/5">
-                <Briefcase className="h-3 w-3 text-secondary" />
-                <span className="text-[10px] font-bold truncate">{profile.occupation}</span>
+              <div className="flex items-center gap-2.5 bg-white/10 rounded-2xl p-3 backdrop-blur-xl border border-white/10 transition-colors group-hover:bg-white/20">
+                <Briefcase className="h-3.5 w-3.5 text-secondary shrink-0" />
+                <span className="text-[11px] font-bold truncate leading-none">{profile.occupation.split(' ')[0]}</span>
               </div>
+            </div>
+            
+            <div className="mt-8 flex justify-center opacity-0 transition-all duration-500 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0">
+               <span className="text-xs font-bold uppercase tracking-[0.4em] text-secondary">View Profile</span>
             </div>
           </div>
         </div>

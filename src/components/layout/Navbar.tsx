@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from "next/link";
@@ -23,7 +22,7 @@ function UserAvatar({ userId, className }: { userId: string, className?: string 
   const { data: profile } = useDoc(userRef);
   
   return (
-    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("relative overflow-hidden rounded-full bg-muted shadow-inner", className)}>
       {profile?.photoUrl ? (
         <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
       ) : (
@@ -99,9 +98,7 @@ export function Navbar() {
     return recentMatches.some(m => m.lastMessageRead === false && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
   }, [recentMatches, user]);
 
-  const userEmail = user?.email?.toLowerCase() || "";
-  const isSuperAdmin = userEmail.includes('amaanakhtar050') || userEmail.includes('admin');
-  const isAdmin = profile?.role === 'admin' || isSuperAdmin;
+  const isAdmin = profile?.role === 'admin';
   const hasProfile = !!profile && profile.isProfileComplete;
   const isApproved = profile?.status === 'approved';
 
@@ -144,17 +141,17 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
-        <Link href="/">
-          <Logo variant="full" size={36} />
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-2xl">
+      <div className="container mx-auto flex h-20 items-center justify-between px-6 lg:px-12">
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <Logo variant="full" size={40} />
         </Link>
 
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-8 md:flex">
           {isAdmin && (
             <Link href="/admin" className={cn(
-              "flex items-center gap-1.5 text-sm font-bold transition-colors",
-              pathname.startsWith('/admin') ? "text-primary" : "text-muted-foreground hover:text-primary"
+              "flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-full",
+              pathname.startsWith('/admin') ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:bg-muted"
             )}>
               <ShieldAlert className="h-4 w-4" /> Admin
             </Link>
@@ -168,8 +165,8 @@ export function Navbar() {
                 key={link.href}
                 href={isDisabled ? "#" : link.href} 
                 className={cn(
-                  "flex items-center gap-1.5 text-sm font-medium transition-colors",
-                  active ? "text-primary font-bold" : "text-muted-foreground hover:text-primary",
+                  "flex items-center gap-2 text-sm font-semibold transition-all group px-2 py-1",
+                  active ? "text-primary scale-105" : "text-muted-foreground hover:text-primary",
                   isDisabled && "cursor-not-allowed opacity-50"
                 )}
                 onClick={(e) => {
@@ -182,107 +179,63 @@ export function Navbar() {
                   }
                 }}
               >
-                {isDisabled ? <Lock className="h-3.5 w-3.5" /> : <link.icon className="h-4 w-4" />}
+                <div className={cn("p-2 rounded-xl transition-colors", active ? "bg-primary/10" : "group-hover:bg-primary/5")}>
+                  {isDisabled ? <Lock className="h-4 w-4" /> : <link.icon className="h-4 w-4" />}
+                </div>
                 {link.label}
               </Link>
             );
           })}
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
-              {/* Search Trigger */}
               <Button 
-                variant={pathname === '/discover' ? 'default' : 'ghost'} 
+                variant="ghost" 
                 size="icon" 
-                className="h-9 w-9 rounded-full" 
+                className={cn("h-11 w-11 rounded-2xl transition-all", pathname === '/discover' ? "bg-primary/10 text-primary" : "hover:bg-muted")} 
                 onClick={handleSearchClick}
-                title="Search Members"
               >
                 <Search className="h-5 w-5" />
               </Button>
 
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
+                  <Button variant="ghost" size="icon" className="relative h-11 w-11 rounded-2xl hover:bg-muted transition-all">
                     <Bell className="h-5 w-5" />
                     {unreadNotificationsCount > 0 && (
-                      <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm">
+                      <span className="absolute -right-1 -top-1 h-5 w-5 flex items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground shadow-lg border-2 border-background">
                         {unreadNotificationsCount}
                       </span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 shadow-2xl border-primary/10" align="end">
-                  <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
-                    <h3 className="font-bold text-sm">Notifications</h3>
-                    <Link href="/notifications" className="text-[10px] font-bold text-primary uppercase hover:underline">View All</Link>
+                <PopoverContent className="w-96 p-0 shadow-2xl border-none rounded-[2rem] overflow-hidden mt-2" align="end">
+                  <div className="p-6 border-b bg-muted/30 flex items-center justify-between">
+                    <h3 className="font-bold text-lg text-primary">Notifications</h3>
+                    <Link href="/notifications" className="text-xs font-bold text-primary hover:underline">View All</Link>
                   </div>
-                  <div className="max-h-[400px] overflow-auto">
+                  <div className="max-h-[450px] overflow-auto">
                     {notifications.length > 0 ? (
                       notifications.map((n: any) => (
                         <div 
                           key={n.id} 
-                          className={cn("p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors cursor-pointer hover:bg-muted/20", !n.read ? "bg-primary/5 border-l-4 border-l-primary" : "bg-transparent")}
+                          className={cn("p-6 border-b text-sm flex justify-between items-start gap-4 transition-colors cursor-pointer hover:bg-muted/10", !n.read ? "bg-primary/[0.03] border-l-4 border-l-primary" : "bg-transparent")}
                           onClick={() => !n.read && handleMarkAsRead(n.id)}
                         >
-                          <div className="flex-1 space-y-1">
-                            <p className={cn("text-[11px]", !n.read ? "font-bold text-foreground" : "text-muted-foreground")}>{n.title || "Notification"}</p>
-                            <p className="text-[10px] text-muted-foreground line-clamp-2">{n.message || "Notification details..."}</p>
-                            <span className="text-[9px] text-muted-foreground opacity-70">{n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}</span>
+                          <div className="flex-1 space-y-1.5">
+                            <p className={cn("text-sm", !n.read ? "font-bold text-foreground" : "text-muted-foreground")}>{n.title || "Notification"}</p>
+                            <p className="text-xs text-muted-foreground/80 leading-relaxed line-clamp-2">{n.message || "Interaction details available..."}</p>
+                            <span className="text-[10px] text-muted-foreground font-bold opacity-60 uppercase tracking-widest">{n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}><Trash2 className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 rounded-full" onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       ))
                     ) : (
-                      <div className="p-12 text-center flex flex-col items-center gap-2">
-                        <Bell className="h-8 w-8 text-muted-foreground/20" />
-                        <p className="text-muted-foreground text-[11px] italic">No notifications yet.</p>
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
-                    <MessageSquare className="h-5 w-5" />
-                    {(recentMatches.length > 0 || hasUnreadMessages) && (
-                      <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground shadow-sm">
-                        {recentMatches.filter(m => !m.lastMessageRead && m.lastMessageSenderId !== user.uid).length || recentMatches.length}
-                      </span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 shadow-2xl border-primary/10" align="end">
-                  <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
-                    <h3 className="font-bold text-sm">Matches & Chat</h3>
-                    <Link href="/messages" className="text-[10px] font-bold text-primary uppercase hover:underline">Open Messages</Link>
-                  </div>
-                  <div className="max-h-[400px] overflow-auto">
-                    {recentMatches.length > 0 ? (
-                      recentMatches.map((match: any) => {
-                        const partnerId = match.fromUserId === user?.uid ? match.toUserId : match.fromUserId;
-                        const partnerName = match.fromUserId === user?.uid ? match.toUserName : match.fromUserName;
-                        return (
-                          <div key={match.id} className="p-4 border-b flex items-center gap-3 hover:bg-muted/20 cursor-pointer transition-colors" onClick={() => router.push('/messages')}>
-                            <UserAvatar userId={partnerId} className="h-10 w-10 shrink-0 border border-primary/10" />
-                            <div className="flex-1 overflow-hidden">
-                              <div className="flex justify-between items-center mb-0.5">
-                                <p className="font-bold text-xs truncate">{partnerName}</p>
-                                {match.updatedAt?.toDate && <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(match.updatedAt.toDate(), { addSuffix: false })}</span>}
-                              </div>
-                              <p className="text-[10px] text-muted-foreground truncate">{match.lastMessage || "Start a conversation..."}</p>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="p-12 text-center flex flex-col items-center gap-2">
-                        <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
-                        <p className="text-muted-foreground text-[11px] italic">No active matches found.</p>
+                      <div className="p-16 text-center flex flex-col items-center gap-4">
+                        <div className="h-16 w-16 bg-muted rounded-2xl flex items-center justify-center"><Bell className="h-8 w-8 text-muted-foreground/30" /></div>
+                        <p className="text-muted-foreground text-sm font-medium italic">Your inbox is empty.</p>
                       </div>
                     )}
                   </div>
@@ -290,39 +243,44 @@ export function Navbar() {
               </Popover>
 
               <Link href="/dashboard">
-                <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full p-0 border border-primary/20 bg-muted">
-                   {profile?.photoUrl ? (
-                     <Image src={profile.photoUrl} alt="Avatar" width={36} height={36} className="h-full w-full object-cover" />
-                   ) : (
-                     <User className="h-5 w-5 text-muted-foreground" />
-                   )}
+                <Button variant="ghost" className={cn("flex h-12 px-2 items-center gap-3 rounded-2xl transition-all", pathname === '/dashboard' ? "bg-primary/5 shadow-inner" : "hover:bg-muted")}>
+                   <div className="h-9 w-9 overflow-hidden rounded-xl border border-primary/20 bg-muted shrink-0">
+                     {profile?.photoUrl ? (
+                       <Image src={profile.photoUrl} alt="Avatar" width={40} height={40} className="h-full w-full object-cover" />
+                     ) : (
+                       <div className="h-full w-full flex items-center justify-center"><User className="h-5 w-5 text-muted-foreground" /></div>
+                     )}
+                   </div>
+                   <span className="hidden lg:block text-xs font-bold text-primary pr-2">My Profile</span>
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleLogout} title="Log Out">
+              
+              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-2xl text-destructive hover:bg-destructive/10 transition-all" onClick={handleLogout} title="Log Out">
                 <LogOut className="h-5 w-5" />
               </Button>
             </>
           ) : !loading && (
-            <div className="flex gap-2">
-              <Link href="/login"><Button variant="ghost">Login</Button></Link>
-              <Link href="/register"><Button>Join Al Batul</Button></Link>
+            <div className="flex gap-4">
+              <Link href="/login"><Button variant="ghost" className="font-bold">Login</Button></Link>
+              <Link href="/register"><Button className="font-bold shadow-xl rounded-2xl px-8">Join Free</Button></Link>
             </div>
           )}
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-6 w-6" /></Button>
+              <Button variant="ghost" size="icon" className="md:hidden h-11 w-11 rounded-2xl hover:bg-muted"><Menu className="h-6 w-6" /></Button>
             </SheetTrigger>
-            <SheetContent side="right">
+            <SheetContent side="right" className="rounded-l-[3rem] border-none shadow-2xl p-0">
               <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
-              <div className="flex flex-col gap-6 py-8">
+              <div className="flex flex-col gap-6 py-12 px-8">
+                <Logo variant="full" size={48} className="mb-8" />
                 {isAdmin && (
-                  <Link href="/admin" className="text-lg font-bold text-primary flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5" /> Admin Panel
+                  <Link href="/admin" className="text-xl font-bold text-primary flex items-center gap-4 p-4 rounded-3xl bg-primary/5">
+                    <ShieldAlert className="h-6 w-6" /> Admin Panel
                   </Link>
                 )}
-                <Link href="/discover" className={cn("text-lg font-medium flex items-center gap-2", (!hasProfile || !isApproved) && !isAdmin && "opacity-50 cursor-not-allowed")} onClick={handleSearchClick as any}>
-                  <Search className="h-5 w-5" /> Search
+                <Link href="/discover" className={cn("text-xl font-bold flex items-center gap-4 p-4", (!hasProfile || !isApproved) && !isAdmin && "opacity-50")} onClick={handleSearchClick as any}>
+                  <Search className="h-6 w-6 text-primary" /> Discover Matches
                 </Link>
                 {navLinks.map((link) => {
                   const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
@@ -330,7 +288,7 @@ export function Navbar() {
                     <Link 
                       key={link.href}
                       href={isDisabled ? "#" : link.href} 
-                      className={cn("text-lg font-medium flex items-center gap-2", isDisabled && "opacity-50 cursor-not-allowed")}
+                      className={cn("text-xl font-bold flex items-center gap-4 p-4", isDisabled && "opacity-50")}
                       onClick={(e) => {
                         if (isDisabled) {
                           e.preventDefault();
@@ -338,14 +296,15 @@ export function Navbar() {
                         }
                       }}
                     >
-                      {isDisabled ? <Lock className="h-4 w-4" /> : <link.icon className="h-5 w-5" />} {link.label}
+                      <div className="p-3 bg-muted rounded-2xl">{isDisabled ? <Lock className="h-6 w-6" /> : <link.icon className="h-6 w-6 text-primary" />}</div>
+                      {link.label}
                     </Link>
                   );
                 })}
-                <Link href="/notifications" className="text-lg font-medium">Notifications</Link>
-                <Link href="/messages" className="text-lg font-medium">Messages</Link>
-                <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>
-                {user && <Button variant="destructive" className="w-full mt-4" onClick={handleLogout}>Logout</Button>}
+                <div className="mt-auto pt-12 space-y-4">
+                  <Link href="/dashboard" className="block p-4 rounded-3xl bg-muted text-center font-bold">My Dashboard</Link>
+                  {user && <Button variant="destructive" className="w-full h-14 rounded-3xl font-bold shadow-xl" onClick={handleLogout}>Log Out</Button>}
+                </div>
               </div>
             </SheetContent>
           </Sheet>

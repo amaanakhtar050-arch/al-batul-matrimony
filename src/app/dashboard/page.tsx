@@ -41,12 +41,12 @@ function UserAvatar({ userId, className }: { userId: string, className?: string 
   const { data: profile } = useDoc(userRef);
   
   return (
-    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("relative overflow-hidden rounded-[2rem] bg-muted shadow-lg", className)}>
       {profile?.photoUrl ? (
         <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
-          <User className="h-2/3 w-2/3" />
+          <User className="h-1/2 w-1/2" />
         </div>
       )}
     </div>
@@ -88,13 +88,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchSuggestions() {
-      // Optimized: Prevent redundant AI calls
       if (!profile || !db || profile.status !== 'approved' || aiSuggestions) return;
       
       setLoadingSuggestions(true);
       setAiError(null);
       try {
-        // Optimized: Only fetch small batch of recent approved users for AI scanning
         const q = query(collection(db, 'users'), where('status', '==', 'approved'), limit(10));
         const snapshot = await getDocs(q);
         const availableProfiles = snapshot.docs
@@ -124,7 +122,7 @@ export default function DashboardPage() {
           setAiSuggestions(result);
         }
       } catch (err) {
-        setAiError("AI suggestions are temporarily unavailable. Please try again later.");
+        setAiError("AI suggestions are temporarily unavailable.");
       } finally {
         setLoadingSuggestions(false);
       }
@@ -136,9 +134,8 @@ export default function DashboardPage() {
     const file = e.target.files?.[0];
     if (!file || !db || !user) return;
 
-    // Optimized: Enforce file size limit for performance
     if (file.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "File too large", description: "Please upload an image smaller than 2MB." });
+      toast({ variant: "destructive", title: "File too large", description: "Limit 2MB." });
       return;
     }
 
@@ -147,14 +144,12 @@ export default function DashboardPage() {
     reader.onloadend = () => {
       const base64String = reader.result as string;
       const userRef = doc(db, 'users', user.uid);
-      
-      // Update primary photo AND push to gallery array
       updateDoc(userRef, { 
         photoUrl: base64String, 
         photos: arrayUnion(base64String),
         updatedAt: serverTimestamp() 
       })
-        .then(() => toast({ title: "Photo Updated", description: "Your photo has been added to your gallery." }))
+        .then(() => toast({ title: "Photo Updated" }))
         .finally(() => setIsUploadingPhoto(false));
     };
     reader.readAsDataURL(file);
@@ -166,11 +161,13 @@ export default function DashboardPage() {
 
   if (profile?.isBanned || profile?.isSuspended) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
-        <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
-        <h1 className="text-3xl font-bold mb-2 font-headline">{profile.isBanned ? "Account Banned" : "Account Suspended"}</h1>
-        <p className="text-muted-foreground max-w-md">Access has been revoked by the administration.</p>
-        <Button variant="outline" className="mt-8" onClick={() => window.location.href = '/'}>Back to Home</Button>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center">
+        <div className="h-32 w-32 bg-destructive/10 rounded-[3rem] flex items-center justify-center mb-10">
+          <ShieldAlert className="h-16 w-16 text-destructive" />
+        </div>
+        <h1 className="text-4xl font-bold mb-4 font-headline text-primary">Account Restricted</h1>
+        <p className="text-muted-foreground max-w-sm leading-relaxed font-medium">Your access to the platform has been suspended by administration. Please contact support for details.</p>
+        <Button variant="outline" className="mt-12 h-14 px-12 rounded-[2rem] font-bold" onClick={() => window.location.href = '/'}>Back to Home</Button>
       </div>
     );
   }
@@ -179,15 +176,19 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto flex items-center justify-center px-4 py-20">
-          <Card className="w-full max-w-md text-center border-none shadow-2xl rounded-[3rem] p-12 overflow-hidden bg-white">
-            <CardHeader>
-              <UserPlus className="mx-auto h-20 w-20 text-primary/20 mb-6" />
-              <CardTitle className="text-4xl font-headline text-primary">Join the Community</CardTitle>
-              <CardDescription className="text-lg mt-4 leading-relaxed">Complete your profile to start discovering verified matches.</CardDescription>
+        <main className="container mx-auto flex items-center justify-center px-6 py-24">
+          <Card className="w-full max-w-xl text-center border-none shadow-[0_50px_100px_rgba(0,0,0,0.1)] rounded-[4rem] p-16 overflow-hidden bg-white">
+            <CardHeader className="space-y-6">
+              <div className="h-32 w-32 bg-primary/5 rounded-[3rem] flex items-center justify-center mx-auto mb-4">
+                <UserPlus className="h-16 w-16 text-primary" />
+              </div>
+              <CardTitle className="text-5xl font-headline text-primary">Begin Your Journey</CardTitle>
+              <CardDescription className="text-xl leading-relaxed text-muted-foreground/70">Complete your details to be verified by our administrative team and start exploring matches.</CardDescription>
             </CardHeader>
-            <CardFooter className="pt-8">
-              <Link href="/setup-profile" className="w-full"><Button className="w-full h-16 text-xl font-bold shadow-xl rounded-3xl">Start Setup</Button></Link>
+            <CardFooter className="pt-12">
+              <Link href="/setup-profile" className="w-full">
+                <Button className="w-full h-20 text-2xl font-bold shadow-2xl rounded-[2.5rem] bg-primary hover:scale-[1.02] transition-transform">Complete Profile</Button>
+              </Link>
             </CardFooter>
           </Card>
         </main>
@@ -201,92 +202,113 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8 lg:px-8">
-        <div className="mb-12 flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-          <div className="flex items-center gap-6">
-            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-              <div className="h-32 w-32 overflow-hidden rounded-[2.5rem] border-4 border-primary/10 bg-muted relative shadow-2xl group-hover:border-primary/30 transition-all">
-                {profile.photoUrl ? (
-                  <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-muted-foreground/30"><UserPlus className="h-12 w-12" /></div>
-                )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="h-8 w-8 text-white" /></div>
-                {isUploadingPhoto && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-8 w-8 text-white animate-spin" /></div>}
+      <main className="container mx-auto px-6 py-12 lg:px-12 max-w-7xl">
+        {/* Profile Header */}
+        <section className="mb-16 animate-fade-in">
+          <div className="flex flex-col items-start gap-10 md:flex-row md:items-center justify-between">
+            <div className="flex items-center gap-10">
+              <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                <div className="h-40 w-40 overflow-hidden rounded-[3.5rem] bg-white relative shadow-2xl border-4 border-white ring-1 ring-primary/10 group-hover:ring-primary/40 transition-all">
+                  {profile.photoUrl ? (
+                    <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover transition-transform group-hover:scale-105" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground/20 bg-muted"><User className="h-16 w-16" /></div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]">
+                    <Camera className="h-10 w-10 text-white" />
+                  </div>
+                  {isUploadingPhoto && <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-md"><Loader2 className="h-10 w-10 text-white animate-spin" /></div>}
+                </div>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
               </div>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-            </div>
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">Salam, {profile.fullName}!</h1>
-              <div className="flex items-center gap-3 mt-3">
-                 <Badge variant="outline" className={`h-7 px-4 gap-2 text-[10px] font-bold tracking-widest ${profile.status === 'approved' ? 'bg-green-600 text-white border-none shadow-md' : 'bg-muted'}`}>
-                    {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                    {profile.status === 'approved' ? 'VERIFIED' : 'PENDING'}
-                 </Badge>
-                 {planName !== 'Free' && (
-                   <Badge className="h-7 px-4 gap-2 bg-gradient-to-r from-primary to-primary/80 border-none text-white text-[10px] font-bold shadow-md">
-                      <Crown className="h-4 w-4 text-secondary" /> {planName.toUpperCase()}
+              <div className="space-y-4">
+                <h1 className="text-5xl md:text-7xl font-bold font-headline text-primary tracking-tight">Salam, {profile.fullName.split(' ')[0]}</h1>
+                <div className="flex flex-wrap items-center gap-4">
+                   <Badge className={cn("h-9 px-5 gap-2 text-[11px] font-bold border-none shadow-xl tracking-widest", profile.status === 'approved' ? 'bg-green-600' : 'bg-muted text-muted-foreground')}>
+                      {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                      {profile.status === 'approved' ? 'VERIFIED' : 'PENDING APPROVAL'}
                    </Badge>
-                 )}
+                   <Badge className="h-9 px-5 gap-2 bg-white text-primary border-none text-[11px] font-bold shadow-xl">
+                      <Crown className="h-4 w-4 text-secondary" /> {planName.toUpperCase()} MEMBER
+                   </Badge>
+                </div>
               </div>
             </div>
+            <Link href="/setup-profile" className="w-full md:w-auto">
+              <Button className="w-full h-16 px-10 gap-3 font-bold shadow-xl rounded-[2rem] bg-white text-primary border-2 border-primary/5 hover:bg-muted transition-all text-lg">
+                <Edit2 className="h-5 w-5" /> Edit Profile
+              </Button>
+            </Link>
           </div>
-          <Link href="/setup-profile"><Button className="h-14 px-8 gap-3 font-bold shadow-xl rounded-2xl bg-white text-primary hover:bg-muted border border-border"><Edit2 className="h-5 w-5" /> Edit Profile</Button></Link>
-        </div>
+        </section>
 
-        <div className="grid gap-10 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-10">
-            <Card className={`border-none shadow-2xl overflow-hidden rounded-[3rem] ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="flex items-center gap-3 text-3xl font-headline">
-                  <Sparkles className="h-8 w-8 text-secondary" /> Intelligent Matches
-                </CardTitle>
+        <div className="grid gap-12 lg:grid-cols-12">
+          {/* Main Content Area */}
+          <div className="lg:col-span-8 space-y-12">
+            {/* AI Recommendations Card */}
+            <Card className={cn("border-none shadow-[0_40px_80px_rgba(0,0,0,0.08)] overflow-hidden rounded-[4rem] transition-all", profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-white')}>
+              <CardHeader className="p-12 pb-6">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-4 text-4xl font-headline">
+                    <Sparkles className="h-10 w-10 text-secondary" /> Smart Matches
+                  </CardTitle>
+                  <Link href="/discover" className="hidden sm:block">
+                    <Button variant="secondary" className="font-bold rounded-2xl h-10">Discover All</Button>
+                  </Link>
+                </div>
               </CardHeader>
-              <CardContent className="p-8 pt-0">
+              <CardContent className="p-12 pt-0">
                 {profile.status !== 'approved' ? (
-                  <div className="py-20 text-center opacity-40">
-                    <Lock className="mx-auto mb-6 h-16 w-16" />
-                    <p className="text-xl font-bold">Verify to Unlock Matches</p>
+                  <div className="py-24 text-center">
+                    <div className="h-20 w-20 bg-muted/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8"><Lock className="h-10 w-10 text-muted-foreground/30" /></div>
+                    <p className="text-xl font-bold opacity-40">Your account is being verified.</p>
+                    <p className="text-sm opacity-30 max-w-xs mx-auto mt-2">Personalized matches will appear here once approved.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {loadingSuggestions ? (
-                      <div className="flex h-64 items-center justify-center"><Loader2 className="h-10 w-10 animate-spin opacity-20" /></div>
+                      <div className="flex h-64 items-center justify-center"><Loader2 className="h-12 w-12 animate-spin opacity-20" /></div>
                     ) : aiError ? (
-                      <div className="text-center py-10 opacity-60"><AlertCircle className="mx-auto h-10 w-10 mb-4" /><p className="text-sm">{aiError}</p></div>
+                      <div className="text-center py-12 opacity-60 bg-white/5 rounded-[2.5rem]"><AlertCircle className="mx-auto h-12 w-12 mb-4" /><p className="text-lg font-medium">{aiError}</p></div>
                     ) : aiSuggestions?.suggestions.length ? (
                       aiSuggestions.suggestions.map((suggestion) => (
-                        <div key={suggestion.profileId} className="group flex flex-col gap-6 rounded-[2.5rem] bg-white/10 p-8 backdrop-blur-xl md:flex-row md:items-center hover:bg-white/20 transition-all border border-white/10 shadow-lg">
-                          <UserAvatar userId={suggestion.profileId} className="h-20 w-20 shrink-0 rounded-[1.5rem] bg-white/20 shadow-xl" />
-                          <div className="flex-1 space-y-2">
-                             <p className="text-base font-medium leading-relaxed opacity-90 italic">"{suggestion.reason}"</p>
+                        <div key={suggestion.profileId} className="group flex flex-col gap-8 rounded-[3rem] bg-white/10 p-10 backdrop-blur-3xl md:flex-row md:items-center hover:bg-white/15 transition-all border border-white/10 shadow-2xl">
+                          <UserAvatar userId={suggestion.profileId} className="h-24 w-24 shrink-0 rounded-[2.25rem] bg-white/20 shadow-2xl border-2 border-white/20" />
+                          <div className="flex-1 space-y-3">
+                             <p className="text-lg font-medium leading-relaxed opacity-95 font-body">"{suggestion.reason}"</p>
                           </div>
-                          <Link href={`/profiles/${suggestion.profileId}`}><Button variant="secondary" size="lg" className="font-bold h-12 px-6 rounded-2xl shadow-xl">View</Button></Link>
+                          <Link href={`/profiles/${suggestion.profileId}`}>
+                            <Button variant="secondary" size="lg" className="font-bold h-14 px-10 rounded-3xl shadow-2xl bg-white text-primary hover:bg-muted transition-transform active:scale-95">View Profile</Button>
+                          </Link>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-16 opacity-40"><Heart className="mx-auto h-12 w-12 mb-4" /><p className="text-xl font-bold">Finding compatibility...</p></div>
+                      <div className="text-center py-24 bg-white/5 rounded-[3.5rem]">
+                        <Heart className="mx-auto h-16 w-16 mb-6 opacity-20" />
+                        <p className="text-2xl font-headline font-bold opacity-40">Curating the perfect matches...</p>
+                      </div>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
+            {/* Navigation Grid */}
             <section>
-               <h2 className="text-2xl font-bold font-headline mb-6 text-primary px-2">Navigation</h2>
-               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+               <h2 className="text-3xl font-bold font-headline mb-8 text-primary px-4">Executive Dashboard</h2>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
                   {[
-                    { href: "/setup-profile", icon: Edit2, label: "Gallery", color: "bg-primary/10 text-primary" },
-                    { href: `/profiles/${user.uid}`, icon: Eye, label: "Preview", color: "bg-secondary/10 text-secondary-foreground" },
-                    { href: "/membership", icon: Crown, label: "Subscription", color: "bg-orange-100 text-orange-600" },
-                    { href: "/discover", icon: Search, label: "Search", color: "bg-blue-100 text-blue-600" }
+                    { href: "/setup-profile", icon: Edit2, label: "My Gallery", color: "bg-primary/5 text-primary" },
+                    { href: `/profiles/${user.uid}`, icon: Eye, label: "Live Preview", color: "bg-secondary/5 text-secondary-foreground" },
+                    { href: "/membership", icon: Crown, label: "Subscription", color: "bg-orange-50 text-orange-600" },
+                    { href: "/discover", icon: Search, label: "Deep Search", color: "bg-blue-50 text-blue-600" }
                   ].map((act, i) => (
-                    <Link key={i} href={act.href} className="block">
-                      <Card className="hover:bg-accent/50 transition-all cursor-pointer border-none shadow-xl h-full flex flex-col items-center justify-center p-8 text-center gap-4 rounded-[2rem] group">
-                         <div className={cn("h-16 w-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg", act.color)}>
-                            <act.icon className="h-8 w-8" />
+                    <Link key={i} href={act.href} className="group h-full">
+                      <Card className="hover:bg-white transition-all cursor-pointer border-none shadow-[0_20px_40px_rgba(0,0,0,0.04)] h-full flex flex-col items-center justify-center p-10 text-center gap-6 rounded-[3rem] border border-transparent hover:border-primary/5 hover:-translate-y-2 group">
+                         <div className={cn("h-20 w-20 rounded-[2rem] flex items-center justify-center transition-all shadow-lg group-hover:scale-110", act.color)}>
+                            <act.icon className="h-10 w-10" />
                          </div>
-                         <span className="text-sm font-bold opacity-80">{act.label}</span>
+                         <span className="text-sm font-bold opacity-70 tracking-widest uppercase">{act.label}</span>
                       </Card>
                     </Link>
                   ))}
@@ -294,40 +316,48 @@ export default function DashboardPage() {
             </section>
           </div>
 
-          <div className="space-y-10">
-            <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-[3rem]">
-               <CardHeader className="p-8 pb-4">
-                  <div className="flex items-center justify-between mb-4">
-                     <CardTitle className="text-2xl font-headline text-primary">Progress</CardTitle>
-                     <Badge className="bg-primary/10 text-primary border-none font-bold text-lg h-10 px-4 rounded-2xl">{completionPercentage}%</Badge>
+          {/* Sidebar Area */}
+          <div className="lg:col-span-4 space-y-12">
+            {/* Completion Progress Card */}
+            <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] bg-white overflow-hidden rounded-[4rem]">
+               <CardHeader className="p-10 pb-6">
+                  <div className="flex items-center justify-between mb-6">
+                     <CardTitle className="text-2xl font-headline text-primary">Reliability</CardTitle>
+                     <Badge className="bg-primary/5 text-primary border-none font-bold text-lg h-12 px-6 rounded-3xl">{completionPercentage}%</Badge>
                   </div>
-                  <Progress value={completionPercentage} className="h-3 bg-muted rounded-full" />
+                  <Progress value={completionPercentage} className="h-4 bg-muted rounded-full" />
                </CardHeader>
-               <CardContent className="p-8 pt-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">A complete profile is 80% more likely to find a match.</p>
+               <CardContent className="p-10 pt-4">
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed mb-8 font-medium">Profiles with 100% completion receive up to 5x more meaningful interest requests.</p>
                   {completionPercentage < 100 && (
-                    <Link href="/setup-profile"><Button variant="outline" className="w-full text-sm font-bold h-12 gap-2 rounded-2xl border-2">Complete Profile <ArrowRight className="h-4 w-4" /></Button></Link>
+                    <Link href="/setup-profile">
+                      <Button variant="outline" className="w-full text-base font-bold h-16 gap-3 rounded-[2rem] border-2 border-primary/10 hover:bg-muted">Finalize Details <ArrowRight className="h-5 w-5" /></Button>
+                    </Link>
                   )}
                </CardContent>
             </Card>
 
-            <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden">
-              <CardHeader className="p-8 bg-muted/30 border-b">
-                <CardTitle className="text-2xl font-headline text-primary">Membership</CardTitle>
+            {/* Membership Card */}
+            <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] rounded-[4rem] overflow-hidden bg-white">
+              <CardHeader className="p-10 bg-muted/10 border-b border-muted">
+                <CardTitle className="text-2xl font-headline text-primary">Member Status</CardTitle>
               </CardHeader>
-              <CardContent className="p-8 space-y-6">
-                <div className="p-6 bg-primary/5 rounded-[2rem] flex items-center justify-between border border-primary/10">
+              <CardContent className="p-10 space-y-10">
+                <div className="p-8 bg-background rounded-[3rem] flex items-center justify-between border border-primary/5 shadow-inner">
                     <div>
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Active Plan</p>
-                        <p className="font-bold text-2xl text-primary">{planName}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Active Plan</p>
+                        <p className="font-bold text-3xl text-primary font-headline tracking-tight">{planName}</p>
                     </div>
-                    {planName === 'Free' ? <Zap className="h-10 w-10 text-orange-400" /> : <Crown className="h-10 w-10 text-primary" />}
+                    {planName === 'Free' ? <Zap className="h-12 w-12 text-orange-400" /> : <Crown className="h-12 w-12 text-primary" />}
                 </div>
                 <Link href="/membership" className="block">
-                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-14 rounded-2xl text-lg shadow-xl">
-                        {planName === 'Premium' ? "Manage Plan" : "Upgrade Plan"}
+                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-20 rounded-[2.5rem] text-xl shadow-2xl bg-primary hover:scale-[1.02] transition-transform">
+                        {planName === 'Premium' ? "Manage Benefits" : "Unlock Premium"}
                     </Button>
                 </Link>
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.3em]">Safe & Secure Processing</p>
+                </div>
               </CardContent>
             </Card>
           </div>
