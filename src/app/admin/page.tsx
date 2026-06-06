@@ -66,22 +66,23 @@ export default function AdminDashboard() {
 
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
-  // Security: Redirect non-admins to dashboard immediately
+  // SECURITY GUARD: The exact authorization condition is profile?.role === "admin"
   useEffect(() => {
     if (!authLoading && !profileLoading) {
-      // Diagnostic logging for the user to see in their browser console
-      console.log('[Admin Guard] User authenticated:', !!user);
+      const userRole = profile?.role?.toLowerCase();
+      console.log('[Admin Guard] Auth Status:', !!user);
       console.log('[Admin Guard] User UID:', user?.uid);
-      console.log('[Admin Guard] User Profile Role:', profile?.role);
+      console.log('[Admin Guard] User Email:', user?.email);
+      console.log('[Admin Guard] Detected Role:', userRole);
 
-      // Robust check: ensure user is logged in and has the admin role string
-      const isActuallyAdmin = user && profile?.role === "admin";
+      // Condition: must be logged in AND have the 'admin' role string in Firestore
+      const isActuallyAdmin = user && userRole === "admin";
 
       if (!isActuallyAdmin) {
-        console.warn('[Admin Guard] Unauthorized access. Redirecting to /dashboard.');
+        console.warn('[Admin Guard] Access Denied. Redirecting to /dashboard.');
         router.replace("/dashboard");
       } else {
-        console.log('[Admin Guard] Access granted.');
+        console.log('[Admin Guard] Access Granted.');
       }
     }
   }, [user, profile, authLoading, profileLoading, router]);
@@ -235,7 +236,7 @@ export default function AdminDashboard() {
   }
 
   // Final gate to prevent flash of content
-  if (!user || profile?.role !== "admin") {
+  if (!user || profile?.role?.toLowerCase() !== "admin") {
     return (
        <div className="flex flex-col h-screen items-center justify-center p-4 text-center">
           <AlertCircle className="h-12 w-12 text-destructive mb-4" />

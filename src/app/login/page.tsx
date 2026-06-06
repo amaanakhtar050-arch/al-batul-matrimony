@@ -51,8 +51,9 @@ export default function LoginPage() {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
-      // Critical fix: Ensure Amaan Akhtar and other key accounts get the admin role if document is missing or role is empty
-      const isAdminEmail = user.email?.toLowerCase().includes('amaan') || user.email?.toLowerCase().includes('admin');
+      // Patch: Ensure specific accounts get the admin role
+      const lowerEmail = user.email?.toLowerCase() || "";
+      const isAdminEmail = lowerEmail.includes('amaan') || lowerEmail.includes('admin');
 
       if (!userSnap.exists()) {
         const initialProfile = {
@@ -69,7 +70,6 @@ export default function LoginPage() {
           updatedAt: serverTimestamp(),
         };
 
-        // Fixed: changed userDocRef to userRef
         await setDoc(userRef, initialProfile, { merge: true })
           .catch(async (e) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -94,7 +94,7 @@ export default function LoginPage() {
 
       const userData = userSnap.data();
       
-      // Patch: If the user is supposed to be admin but the role is wrong, update it (development only)
+      // Patch: If the user should be admin but role is wrong, fix it automatically
       if (isAdminEmail && userData.role !== 'admin') {
          await updateDoc(userRef, { role: 'admin', status: 'approved' }).catch(() => {});
       }
