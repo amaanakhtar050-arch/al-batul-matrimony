@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, setDoc, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X, Loader2, Star, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Plus, ShieldCheck, Upload, Star, ArrowUp, ArrowDown, Trash2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -47,7 +46,7 @@ export default function SetupProfilePage() {
     country: '',
     languagesSpoken: '',
     photoUrl: '', // Primary Photo
-    photos: [] as string[], // Gallery
+    photos: [] as string[], // Gallery array
     idPhotoUrl: '',
     selfiePhotoUrl: '',
     about: '',
@@ -68,11 +67,11 @@ export default function SetupProfilePage() {
   const idInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
+  // Enforce membership limits: Free (2), Premium (6)
   const planLimit = existingProfileData?.membership?.plan === 'Premium' ? 6 : 2;
 
   useEffect(() => {
     if (authLoading) return;
-    
     if (!user) {
       router.push('/login');
       return;
@@ -120,7 +119,7 @@ export default function SetupProfilePage() {
           }));
         }
       } catch (err) {
-        console.error("Error checking profile:", err);
+        console.error("Error loading profile:", err);
       } finally {
         setCheckingProfile(false);
       }
@@ -155,23 +154,11 @@ export default function SetupProfilePage() {
     reader.onloadend = () => {
       const base64String = reader.result as string;
       const newPhotos = [...formData.photos, base64String];
-      // If it's the first photo, set it as primary too
+      // If no primary photo yet, set this one
       const newPrimary = formData.photoUrl || base64String;
       
       setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
       setIsUploadingPhoto(false);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
-    const file = e.target.files?.[0];
-    if (!file || !db || !user) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setFormData(prev => ({ ...prev, [field]: base64String }));
     };
     reader.readAsDataURL(file);
   };
@@ -203,6 +190,18 @@ export default function SetupProfilePage() {
     newPhotos[targetIndex] = temp;
     
     setFormData(prev => ({ ...prev, photos: newPhotos }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setFormData(prev => ({ ...prev, [field]: base64String }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -282,7 +281,7 @@ export default function SetupProfilePage() {
 
   if (authLoading || checkingProfile) return (
     <div className="flex h-screen items-center justify-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
     </div>
   );
 
@@ -297,20 +296,21 @@ export default function SetupProfilePage() {
                 <ArrowLeft className="h-4 w-4" /> Back to Dashboard
               </Link>
             )}
-            <h1 className="text-4xl font-bold font-headline mb-2 text-primary">{isEditing ? "Update Profile" : "Create Your Profile"}</h1>
-            <p className="text-lg text-muted-foreground">Manage your photos and mandatory verification details.</p>
+            <h1 className="text-4xl font-bold font-headline mb-2 text-primary">{isEditing ? "Update Profile" : "Complete Your Profile"}</h1>
+            <p className="text-lg text-muted-foreground">Manage your identity and mandatory verification details.</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid gap-8 lg:grid-cols-3">
               <aside className="lg:col-span-1 space-y-6">
-                <Card className="border-none shadow-md overflow-hidden">
+                {/* Profile Gallery Section */}
+                <Card className="border-none shadow-md overflow-hidden bg-white">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-bold text-primary flex items-center justify-between">
                       Profile Gallery
                       <Badge variant="outline" className="text-[10px]">{formData.photos.length}/{planLimit}</Badge>
                     </CardTitle>
-                    <CardDescription>Upload up to {planLimit} photos. Mark one as primary.</CardDescription>
+                    <CardDescription>Upload up to {planLimit} photos. Star one as primary.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
@@ -323,8 +323,8 @@ export default function SetupProfilePage() {
                                <Button type="button" size="icon" variant="secondary" className="h-7 w-7 rounded-full" onClick={() => movePhoto(idx, 'down')} disabled={idx === formData.photos.length - 1}><ArrowDown className="h-3 w-3" /></Button>
                              </div>
                              <div className="flex gap-1">
-                               <Button type="button" size="icon" variant={formData.photoUrl === photo ? "default" : "secondary"} className="h-7 w-7 rounded-full" onClick={() => setAsPrimary(photo)}><Star className={cn("h-3 w-3", formData.photoUrl === photo && "fill-current")} /></Button>
-                               <Button type="button" size="icon" variant="destructive" className="h-7 w-7 rounded-full" onClick={() => deletePhoto(idx)}><Trash2 className="h-3 w-3" /></Button>
+                               <Button type="button" size="icon" variant={formData.photoUrl === photo ? "default" : "secondary"} title="Set as primary" className="h-7 w-7 rounded-full" onClick={() => setAsPrimary(photo)}><Star className={cn("h-3 w-3", formData.photoUrl === photo && "fill-current")} /></Button>
+                               <Button type="button" size="icon" variant="destructive" title="Delete photo" className="h-7 w-7 rounded-full" onClick={() => deletePhoto(idx)}><Trash2 className="h-3 w-3" /></Button>
                              </div>
                           </div>
                           {formData.photoUrl === photo && (
@@ -347,16 +347,17 @@ export default function SetupProfilePage() {
                   </CardContent>
                 </Card>
 
+                {/* Identity Verification */}
                 <Card className="border-none shadow-md bg-accent/20">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
                       <ShieldCheck className="h-5 w-5" /> Identity Verification
                     </CardTitle>
-                    <CardDescription className="text-xs">Required for profile approval.</CardDescription>
+                    <CardDescription className="text-xs">Confidential. Required for approval.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground">Government ID</Label>
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Government ID Proof</Label>
                       <div className="relative aspect-video rounded-xl bg-white/50 border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/80 transition-colors" onClick={() => idInputRef.current?.click()}>
                         {formData.idPhotoUrl ? (
                           <Image src={formData.idPhotoUrl} alt="ID Scan" fill className="object-cover" />
@@ -390,7 +391,7 @@ export default function SetupProfilePage() {
 
               <div className="lg:col-span-2 space-y-8">
                 <Card className="border-none shadow-md">
-                  <CardHeader><CardTitle className="font-headline text-2xl text-primary">Personal Information</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="font-headline text-2xl text-primary">Biographical Details</CardTitle></CardHeader>
                   <CardContent className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name</Label>
@@ -421,6 +422,35 @@ export default function SetupProfilePage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sect">Religious Sect</Label>
+                      <Select value={formData.sect} onValueChange={(v) => setFormData({...formData, sect: v})} required>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Sunni">Sunni</SelectItem>
+                          <SelectItem value="Shia">Shia</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Current City</Label>
+                      <Input id="city" value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} required />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md">
+                  <CardHeader><CardTitle className="font-headline text-2xl text-primary">Professional & Lifestyle</CardTitle></CardHeader>
+                  <CardContent className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="education">Education</Label>
+                      <Input id="education" value={formData.education} onChange={(e) => setFormData({...formData, education: e.target.value})} placeholder="e.g. Master's in IT" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="occupation">Occupation</Label>
+                      <Input id="occupation" value={formData.occupation} onChange={(e) => setFormData({...formData, occupation: e.target.value})} placeholder="e.g. Software Engineer" />
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -429,7 +459,7 @@ export default function SetupProfilePage() {
                   <CardContent>
                     <Textarea 
                       id="about" 
-                      placeholder="Write a sincere bio about yourself and your values..." 
+                      placeholder="Share your values, interests, and what you're looking for in a partner..." 
                       className="min-h-[150px]"
                       value={formData.about}
                       onChange={(e) => setFormData({...formData, about: e.target.value})}
@@ -439,7 +469,7 @@ export default function SetupProfilePage() {
                   <CardFooter className="flex justify-end pt-4">
                     <Button type="submit" size="lg" className="gap-2 font-bold px-12 h-14 shadow-lg" disabled={saving}>
                       <Save className="h-4 w-4" />
-                      {saving ? 'Saving Changes...' : (isEditing ? 'Save Profile' : 'Submit Profile for Approval')}
+                      {saving ? 'Processing...' : (isEditing ? 'Save Changes' : 'Submit Profile')}
                     </Button>
                   </CardFooter>
                 </Card>
