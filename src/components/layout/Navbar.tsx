@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, HelpCircle } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, HelpCircle, Settings, ShieldX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -26,24 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 import { Logo } from "@/components/brand/Logo";
-
-function UserAvatar({ userId, className }: { userId: string, className?: string }) {
-  const db = useFirestore();
-  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
-  const { data: profile } = useDoc(userRef);
-  
-  return (
-    <div className={cn("relative overflow-hidden rounded-full bg-muted shadow-inner", className)}>
-      {profile?.photoUrl ? (
-        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
-          <User className="h-2/3 w-2/3" />
-        </div>
-      )}
-    </div>
-  );
-}
+import { Badge } from "@/components/ui/badge";
 
 export function Navbar() {
   const { user, loading } = useUser();
@@ -72,42 +55,13 @@ export function Navbar() {
   const { data: notifications } = useCollection(notificationsQuery);
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  const sentMatchesQuery = useMemoFirebase(() => {
+  const blocksQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(
-      collection(db, "interests"),
-      where("fromUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      limit(20)
-    );
+    return query(collection(db, "blocks"), where("blockerId", "==", user.uid));
   }, [db, user]);
 
-  const receivedMatchesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(
-      collection(db, "interests"),
-      where("toUserId", "==", user.uid),
-      where("status", "==", "accepted"),
-      limit(20)
-    );
-  }, [db, user]);
-
-  const { data: sentMatches } = useCollection(sentMatchesQuery);
-  const { data: receivedMatches } = useCollection(receivedMatchesQuery);
-
-  const recentMatches = useMemo(() => {
-    const combined = [...sentMatches, ...receivedMatches];
-    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-    return unique.sort((a: any, b: any) => {
-      const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
-      const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
-      return timeB - timeA;
-    });
-  }, [sentMatches, receivedMatches]);
-
-  const hasUnreadMessages = useMemo(() => {
-    return recentMatches.some(m => m.lastMessageRead === false && m.lastMessageSenderId && m.lastMessageSenderId !== user?.uid);
-  }, [recentMatches, user]);
+  const { data: blocks } = useCollection(blocksQuery);
+  const blockedCount = blocks?.length || 0;
 
   const isAdmin = profile?.role === 'admin';
   const hasProfile = !!profile && profile.isProfileComplete;
@@ -140,9 +94,13 @@ export function Navbar() {
   };
 
   const navLinks = [
+    { href: "/dashboard", label: "My Profile", icon: User, restricted: true },
+    { href: "/setup-profile", label: "Settings", icon: Settings, restricted: true },
     { href: "/interests", label: "Interests", icon: Heart, restricted: true },
     { href: "/messages", label: "Messages", icon: MessageSquare, restricted: true },
-    { href: "/support", label: "Support", icon: HelpCircle, restricted: false },
+    { href: "/notifications", label: "Notifications", icon: Bell, restricted: true, badge: unreadNotificationsCount },
+    { href: "/settings/blocked-users", label: "Blocked Users", icon: ShieldX, restricted: true, badge: blockedCount },
+    { href: "/support", label: "Help & Support", icon: HelpCircle, restricted: false },
   ];
 
   const handleSearchClick = (e: React.MouseEvent) => {
@@ -166,7 +124,7 @@ export function Navbar() {
           <Logo variant="full" size={36} className="hidden md:flex" />
         </Link>
 
-        <div className="hidden items-center gap-6 lg:gap-8 md:flex">
+        <div className="hidden items-center gap-4 lg:gap-6 md:flex">
           {isAdmin && (
             <Link href="/admin" className={cn(
               "flex items-center gap-2 text-sm font-bold transition-all px-4 py-2 rounded-full",
@@ -175,7 +133,7 @@ export function Navbar() {
               <ShieldAlert className="h-4 w-4" /> Admin
             </Link>
           )}
-          {navLinks.map((link) => {
+          {navLinks.slice(2, 4).map((link) => {
             const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
             const active = pathname === link.href;
             
@@ -315,41 +273,65 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="rounded-l-[2.5rem] border-none shadow-2xl p-0 w-[85vw] max-w-sm">
               <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
-              <div className="flex flex-col gap-4 py-8 px-6 h-full overflow-y-auto">
+              <div className="flex flex-col gap-2 py-8 px-6 h-full overflow-y-auto bg-background">
                 <Logo variant="full" size={32} className="mb-6 px-2" />
+                
                 {isAdmin && (
-                  <Link href="/admin" className="text-lg font-bold text-primary flex items-center gap-3 p-4 rounded-2xl bg-primary/5">
+                  <Link href="/admin" className="text-lg font-bold text-primary flex items-center gap-3 p-4 rounded-2xl bg-primary/5 mb-2">
                     <ShieldAlert className="h-5 w-5" /> Admin Panel
                   </Link>
                 )}
-                <Link href="/discover" className={cn("text-lg font-bold flex items-center gap-3 p-4", (!hasProfile || !isApproved) && !isAdmin && "opacity-50")} onClick={handleSearchClick as any}>
-                  <Search className="h-5 w-5 text-primary" /> Discover Matches
+
+                <Link href="/discover" className={cn("text-lg font-bold flex items-center gap-3 p-4 rounded-2xl hover:bg-muted transition-all", (!hasProfile || !isApproved) && !isAdmin && "opacity-50")} onClick={handleSearchClick as any}>
+                  <div className="p-2.5 bg-primary/10 rounded-xl"><Search className="h-5 w-5 text-primary" /></div>
+                  Discover Matches
                 </Link>
-                {navLinks.map((link) => {
-                  const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
-                  return (
-                    <Link 
-                      key={link.href}
-                      href={isDisabled ? "#" : link.href} 
-                      className={cn("text-lg font-bold flex items-center gap-3 p-4", isDisabled && "opacity-50")}
-                      onClick={(e) => {
-                        if (isDisabled) {
-                          e.preventDefault();
-                          toast({ title: "Access Restricted" });
-                        }
-                      }}
-                    >
-                      <div className="p-2.5 bg-muted rounded-xl">{isDisabled ? <Lock className="h-5 w-5" /> : <link.icon className="h-5 w-5 text-primary" />}</div>
-                      {link.label}
-                    </Link>
-                  );
-                })}
-                <div className="mt-auto space-y-3 pt-6">
-                  <Link href="/dashboard" className="block p-4 rounded-2xl bg-muted text-center font-bold text-base">My Dashboard</Link>
+
+                <div className="space-y-1">
+                  {navLinks.map((link) => {
+                    const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
+                    const isActive = pathname === link.href;
+
+                    return (
+                      <Link 
+                        key={link.href}
+                        href={isDisabled ? "#" : link.href} 
+                        className={cn(
+                          "text-lg font-bold flex items-center justify-between p-4 rounded-2xl transition-all", 
+                          isActive ? "bg-muted text-primary" : "hover:bg-muted",
+                          isDisabled && "opacity-50 cursor-not-allowed"
+                        )}
+                        onClick={(e) => {
+                          if (isDisabled) {
+                            e.preventDefault();
+                            toast({ title: "Access Restricted" });
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn("p-2.5 rounded-xl", isActive ? "bg-primary text-white" : "bg-muted")}>
+                            {isDisabled ? <Lock className="h-5 w-5" /> : <link.icon className="h-5 w-5" />}
+                          </div>
+                          {link.label}
+                        </div>
+                        {link.badge !== undefined && link.badge > 0 && (
+                          <Badge variant="secondary" className="h-6 min-w-6 flex items-center justify-center rounded-full px-1 font-bold">
+                            {link.badge}
+                          </Badge>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-auto space-y-3 pt-6 border-t">
                   {user && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="w-full h-14 rounded-2xl font-bold shadow-xl">Log Out</Button>
+                        <Button variant="ghost" className="w-full h-14 rounded-2xl font-bold text-destructive hover:bg-destructive/5 justify-start gap-3 px-4">
+                           <div className="p-2.5 bg-destructive/10 rounded-xl"><LogOut className="h-5 w-5 text-destructive" /></div>
+                           Log Out
+                        </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent className="rounded-[2.5rem] p-6 max-w-[90vw] mx-auto">
                         <AlertDialogHeader className="space-y-3">

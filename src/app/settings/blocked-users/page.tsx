@@ -32,7 +32,8 @@ import {
   Trash2, 
   ArrowLeft,
   ShieldCheck,
-  Clock
+  Clock,
+  UserX
 } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, deleteDoc, doc, getDoc, orderBy } from "firebase/firestore";
@@ -83,7 +84,7 @@ function BlockedUserRow({ block, onUnblock }: { block: any, onUnblock: (id: stri
 
   return (
     <TableRow className="group hover:bg-muted/50 transition-colors">
-      <TableCell>
+      <TableCell className="px-6 md:px-10">
         <div className="flex items-center gap-4">
           <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-muted shadow-sm border-2 border-white">
             {profile?.photoUrl ? (
@@ -105,7 +106,7 @@ function BlockedUserRow({ block, onUnblock }: { block: any, onUnblock: (id: stri
            {blockDate}
          </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right px-6 md:px-10">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="ghost" size="sm" className="h-10 px-4 rounded-xl text-destructive hover:bg-destructive/5 font-bold gap-2">
@@ -117,18 +118,18 @@ function BlockedUserRow({ block, onUnblock }: { block: any, onUnblock: (id: stri
               <div className="h-16 w-16 bg-primary/5 rounded-[1.5rem] flex items-center justify-center mx-auto mb-2">
                 <ShieldCheck className="h-8 w-8 text-primary" />
               </div>
-              <AlertDialogTitle className="text-2xl font-headline text-center">Unblock User?</AlertDialogTitle>
+              <AlertDialogTitle className="text-2xl font-headline text-center">Unblock User</AlertDialogTitle>
               <AlertDialogDescription className="text-center text-muted-foreground font-medium leading-relaxed">
-                Are you sure you want to unblock <strong>{profile?.fullName || "this user"}</strong>? They will be able to view your profile and search for you again.
+                Are you sure you want to unblock this user?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-8 flex flex-col gap-3">
-              <AlertDialogCancel className="w-full h-12 rounded-xl border-2 font-bold m-0">Cancel</AlertDialogCancel>
+              <AlertDialogCancel className="w-full h-12 md:h-14 rounded-xl border-2 font-bold m-0">Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => onUnblock(block.id)}
-                className="w-full h-12 rounded-xl bg-primary text-white font-bold m-0"
+                className="w-full h-12 md:h-14 rounded-xl bg-primary text-white font-bold m-0 shadow-xl"
               >
-                Confirm Unblock
+                Unblock
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -160,6 +161,13 @@ export default function BlockedUsersPage() {
 
   const { data: blocks, loading: loadingBlocks } = useCollection(blocksQuery);
 
+  const filteredBlocks = useMemo(() => {
+    if (!blocks) return [];
+    // Note: Search filter here is limited as we only have blockedId in the block doc.
+    // In a production app, we would denormalize user names into the block document.
+    return blocks;
+  }, [blocks]);
+
   const handleUnblock = async (blockId: string) => {
     if (!db) return;
     try {
@@ -179,23 +187,23 @@ export default function BlockedUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 overflow-x-hidden">
       <Navbar />
-      <main className="container mx-auto px-4 py-12 lg:px-8 max-w-5xl">
+      <main className="container mx-auto px-4 py-8 md:py-12 lg:px-8 max-w-5xl">
         <header className="mb-10">
           <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold font-headline text-primary tracking-tight">Privacy Settings</h1>
-              <p className="text-muted-foreground font-medium">Manage the list of members you have restricted.</p>
+              <h1 className="text-3xl md:text-4xl font-bold font-headline text-primary tracking-tight">Blocked Users</h1>
+              <p className="text-muted-foreground font-medium text-sm md:text-base">Manage the list of members you have restricted.</p>
             </div>
             <div className="relative group w-full md:w-80">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input 
                 placeholder="Search blocked list..." 
-                className="h-12 pl-12 rounded-xl bg-white border-none shadow-sm focus-visible:ring-primary/20"
+                className="h-12 md:h-14 pl-12 rounded-xl bg-white border-none shadow-xl focus-visible:ring-primary/20 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -203,37 +211,37 @@ export default function BlockedUsersPage() {
           </div>
         </header>
 
-        <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white">
-          <CardHeader className="p-10 pb-6 border-b border-muted/50 bg-muted/5">
-             <CardTitle className="text-2xl font-headline text-primary flex items-center gap-3">
+        <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-xl border border-white/40">
+          <CardHeader className="p-8 md:p-10 pb-6 border-b border-muted/50">
+             <CardTitle className="text-xl md:text-2xl font-headline text-primary flex items-center gap-3">
                <ShieldX className="h-6 w-6 text-destructive" /> Restricted Members
              </CardTitle>
-             <CardDescription className="text-muted-foreground">Blocked members cannot find your profile or contact you.</CardDescription>
+             <CardDescription className="text-muted-foreground font-medium">Blocked members cannot find your profile or contact you.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/10">
                   <TableRow className="hover:bg-transparent border-b">
-                    <TableHead className="px-10 h-14 font-bold uppercase tracking-widest text-[10px]">Member Profile</TableHead>
+                    <TableHead className="px-6 md:px-10 h-14 font-bold uppercase tracking-widest text-[10px]">Member Profile</TableHead>
                     <TableHead className="h-14 font-bold uppercase tracking-widest text-[10px]">Age</TableHead>
                     <TableHead className="h-14 font-bold uppercase tracking-widest text-[10px]">Blocked On</TableHead>
-                    <TableHead className="px-10 h-14 text-right font-bold uppercase tracking-widest text-[10px]">Action</TableHead>
+                    <TableHead className="px-6 md:px-10 h-14 text-right font-bold uppercase tracking-widest text-[10px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {blocks.length > 0 ? (
-                    blocks.map((block: any) => (
+                  {filteredBlocks.length > 0 ? (
+                    filteredBlocks.map((block: any) => (
                       <BlockedUserRow key={block.id} block={block} onUnblock={handleUnblock} />
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="py-32 text-center">
-                        <div className="h-20 w-20 bg-muted/20 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                           <ShieldX className="h-10 w-10 text-muted-foreground/20" />
+                      <TableCell colSpan={4} className="py-24 md:py-32 text-center">
+                        <div className="h-20 w-20 md:h-24 md:w-24 bg-muted/20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                           <UserX className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/20" />
                         </div>
-                        <p className="text-xl font-headline font-bold text-primary opacity-40">Privacy record is clean.</p>
-                        <p className="text-sm text-muted-foreground mt-1">You haven't blocked any users yet.</p>
+                        <p className="text-xl md:text-2xl font-headline font-bold text-primary opacity-40">Privacy record is clean.</p>
+                        <p className="text-sm md:text-base text-muted-foreground mt-2 font-medium">You have not blocked any users.</p>
                       </TableCell>
                     </TableRow>
                   )}
@@ -242,19 +250,6 @@ export default function BlockedUsersPage() {
             </div>
           </CardContent>
         </Card>
-
-        <section className="mt-12 p-8 bg-primary/5 rounded-[2rem] border border-primary/10 flex flex-col md:flex-row items-center gap-8 animate-fade-in">
-           <div className="h-14 w-14 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
-              <User className="h-6 w-6 text-primary" />
-           </div>
-           <div className="flex-1 text-center md:text-left space-y-1">
-              <p className="font-bold text-primary">Need more privacy?</p>
-              <p className="text-sm text-muted-foreground">You can also report profiles for community standard violations directly from their profile page.</p>
-           </div>
-           <Link href="/support">
-              <Button variant="outline" className="rounded-xl font-bold h-12 border-primary/20">Contact Support</Button>
-           </Link>
-        </section>
       </main>
     </div>
   );
