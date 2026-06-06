@@ -47,13 +47,12 @@ export type IntelligentMatchmakerSuggestionsOutput = z.infer<typeof IntelligentM
 
 /**
  * Defines the AI prompt for matchmaking suggestions.
- * Uses Handlebars templating to inject user and available profile data.
  */
 const prompt = ai.definePrompt({
   name: 'intelligentMatchmakerPrompt',
   input: { schema: IntelligentMatchmakerSuggestionsInputSchema },
   output: { schema: IntelligentMatchmakerSuggestionsOutputSchema },
-  system: "You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to suggest highly compatible profiles based on the user's profile and preferences, considering sect, education, lifestyle, city, marital status, and age.",
+  system: "You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to suggest highly compatible profiles based on the user's profile and preferences, considering sect, education, lifestyle, city, maritalStatus, and age. Suggest up to 3 matches.",
   prompt: `
 User's Profile:
 Sect: {{{userProfile.sect}}}
@@ -63,7 +62,7 @@ City: {{{userProfile.city}}}
 Marital Status: {{{userProfile.maritalStatus}}}
 Age: {{{userProfile.age}}}
 
-Available Profiles to Consider (choose up to 3 most compatible):
+Available Profiles to Consider:
 {{#each availableProfiles}}
 Profile ID: {{{profileId}}}
 Sect: {{{sect}}}
@@ -88,11 +87,16 @@ const intelligentMatchmakerSuggestionsFlow = ai.defineFlow(
     outputSchema: IntelligentMatchmakerSuggestionsOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-      throw new Error('Failed to generate matchmaker suggestions.');
+    try {
+      const { output } = await prompt(input);
+      if (!output) {
+        return { suggestions: [] };
+      }
+      return output;
+    } catch (error) {
+      console.error('Genkit Error in matchmaking flow:', error);
+      return { suggestions: [] };
     }
-    return output;
   }
 );
 
