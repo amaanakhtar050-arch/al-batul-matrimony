@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -22,7 +23,11 @@ import {
   Sparkles,
   TrendingUp,
   AlertCircle,
-  Loader2
+  Loader2,
+  ShieldAlert,
+  Ban,
+  MoreVertical,
+  Flag
 } from "lucide-react";
 import {
   Carousel,
@@ -32,12 +37,35 @@ import {
   CarouselPrevious,
   type CarouselApi
 } from "@/components/ui/carousel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc } from "firebase/firestore";
+import { doc, collection, query, where, addDoc, serverTimestamp, limit, deleteDoc, getDocs } from "firebase/firestore";
 import Link from "next/link";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -45,26 +73,14 @@ import { cn } from "@/lib/utils";
 import { ActivityStatus } from "@/components/profile/ActivityStatus";
 import { calculateCompatibility, CalculateCompatibilityOutput } from "@/ai/flows/calculate-compatibility";
 
-/**
- * A helper component to display a user's avatar fetching the latest photo from Firestore.
- */
-function UserAvatar({ userId, className }: { userId: string, className?: string }) {
-  const db = useFirestore();
-  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
-  const { data: profile } = useDoc(userRef);
-  
-  return (
-    <div className={cn("relative overflow-hidden rounded-full bg-muted", className)}>
-      {profile?.photoUrl ? (
-        <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-muted-foreground/30">
-          <User className="h-2/3 w-2/3" />
-        </div>
-      )}
-    </div>
-  );
-}
+const REPORT_CATEGORIES = [
+  "Fake profile",
+  "Harassment",
+  "Inappropriate content",
+  "Spam",
+  "Scammer",
+  "Other"
+];
 
 export default function ProfileDetailPage() {
   const { id } = useParams();
@@ -72,10 +88,16 @@ export default function ProfileDetailPage() {
   const db = useFirestore();
   const router = useRouter();
   const { user: currentUser } = useUser();
+  
   const [isSending, setIsSending] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportCategory, setReportCategory] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
-  
   const [aiScore, setAiScore] = useState<CalculateCompatibilityOutput | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
 
@@ -84,6 +106,20 @@ export default function ProfileDetailPage() {
 
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
+
+  // Check if blocked by target or target is blocked by viewer
+  const blockQuery = useMemoFirebase(() => {
+    if (!db || !currentUser || !id) return null;
+    return query(
+      collection(db, "blocks"),
+      where("blockerId", "in", [currentUser.uid, id]),
+      where("blockedId", "in", [currentUser.uid, id])
+    );
+  }, [db, currentUser, id]);
+
+  const { data: blockRecords, loading: blockLoading } = useCollection(blockQuery);
+  const isBlockedRelationship = blockRecords && blockRecords.length > 0;
+  const iBlockedThem = blockRecords?.find(b => b.blockerId === currentUser?.uid);
 
   useEffect(() => {
     if (!api) return;
@@ -119,11 +155,9 @@ export default function ProfileDetailPage() {
   const existingSentInterest = sentInterests?.[0];
   const existingReceivedInterest = receivedInterests?.[0];
 
-  // AI Compatibility Logic
   useEffect(() => {
     async function getCompatibility() {
-      if (!viewerProfile || !profile || id === currentUser?.uid || aiScore || loadingAi) return;
-      
+      if (!viewerProfile || !profile || id === currentUser?.uid || aiScore || loadingAi || isBlockedRelationship) return;
       setLoadingAi(true);
       try {
         const result = await calculateCompatibility({
@@ -159,49 +193,20 @@ export default function ProfileDetailPage() {
         setLoadingAi(false);
       }
     }
-    
-    if (viewerProfile && profile && !aiScore && !loadingAi && id !== currentUser?.uid) {
+    if (viewerProfile && profile && !aiScore && !loadingAi && id !== currentUser?.uid && !isBlockedRelationship) {
       getCompatibility();
     }
-  }, [viewerProfile, profile, id, currentUser?.uid, aiScore, loadingAi]);
-
-  useEffect(() => {
-    if (db && currentUser && profile && id && currentUser.uid !== id && viewerProfile) {
-      const viewerName = viewerProfile.fullName || "A member";
-      const viewedRef = collection(db, 'users', id as string, 'notifications');
-      
-      const lastViewedKey = `viewed_${id}`;
-      const lastViewed = localStorage.getItem(lastViewedKey);
-      const now = Date.now();
-      
-      if (!lastViewed || now - parseInt(lastViewed) > 3600000) {
-        addDoc(viewedRef, {
-          type: 'profile_viewed',
-          title: '👀 Profile Viewed',
-          message: `${viewerName} viewed your profile. Potential match!`,
-          senderId: currentUser.uid,
-          receiverId: id,
-          read: false,
-          createdAt: serverTimestamp()
-        });
-        localStorage.setItem(lastViewedKey, now.toString());
-      }
-    }
-  }, [db, currentUser, profile, id, viewerProfile]);
+  }, [viewerProfile, profile, id, currentUser?.uid, aiScore, loadingAi, isBlockedRelationship]);
 
   const handleSendInterest = async () => {
     if (!currentUser || !db || !profile || !viewerProfile) return;
-    
     if (currentUser.uid === profile.id) return;
-
     const isAdmin = viewerProfile?.role === 'admin';
     if (!isAdmin && viewerProfile?.status !== 'approved') {
       toast({ title: "Verification Required", description: "Your profile must be approved to send interests.", variant: "destructive" });
       return;
     }
-
     setIsSending(true);
-
     const interestData = {
       fromUserId: currentUser.uid,
       fromUserName: viewerProfile.fullName || currentUser.email,
@@ -211,56 +216,75 @@ export default function ProfileDetailPage() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
-
-    const interestRef = collection(db, "interests");
-    addDoc(interestRef, interestData)
+    addDoc(collection(db, "interests"), interestData)
       .then(() => {
-        toast({ title: "Interest Sent", description: "We've notified the member of your interest." });
-        
-        const notifyRef = collection(db, 'users', profile.id, 'notifications');
-        addDoc(notifyRef, {
+        toast({ title: "Interest Sent" });
+        addDoc(collection(db, 'users', profile.id, 'notifications'), {
           type: 'interest_received',
           title: '❤️ Interest Received',
-          message: `${viewerProfile.fullName || "A member"} sent you an interest request. Click to respond!`,
+          message: `${viewerProfile.fullName || "A member"} sent you an interest request.`,
           senderId: currentUser.uid,
           receiverId: profile.id,
           read: false,
           createdAt: serverTimestamp()
         });
       })
-      .catch(async (e) => {
-        errorEmitter.emit("permission-error", new FirestorePermissionError({ 
-          path: interestRef.path, 
-          operation: 'create',
-          requestResourceData: interestData
-        }));
-      })
       .finally(() => setIsSending(false));
   };
 
-  const handleWithdrawInterest = () => {
-    if (!db || !existingSentInterest) return;
-    if (!confirm("Withdraw this interest request?")) return;
+  const handleBlockUser = async () => {
+    if (!db || !currentUser || !id) return;
+    setIsBlocking(true);
+    const blockData = {
+      blockerId: currentUser.uid,
+      blockedId: id,
+      createdAt: serverTimestamp()
+    };
+    addDoc(collection(db, "blocks"), blockData)
+      .then(() => {
+        toast({ title: "User Blocked", description: "This member will no longer be visible to you." });
+        router.push('/discover');
+      })
+      .finally(() => setIsBlocking(false));
+  };
 
-    const interestRef = doc(db, "interests", existingSentInterest.id);
-    deleteDoc(interestRef).then(() => {
-      toast({ title: "Interest Withdrawn" });
-    }).catch(async (e) => {
-      errorEmitter.emit("permission-error", new FirestorePermissionError({ 
-        path: interestRef.path, 
-        operation: 'delete' 
-      }));
+  const handleUnblockUser = async () => {
+    if (!db || !iBlockedThem) return;
+    deleteDoc(doc(db, "blocks", iBlockedThem.id)).then(() => {
+      toast({ title: "User Unblocked" });
     });
   };
 
-  if (profileLoading || viewerLoading) return <div className="flex h-screen items-center justify-center animate-pulse" />;
+  const handleReportUser = async () => {
+    if (!db || !currentUser || !id || !reportCategory) return;
+    setIsReporting(true);
+    const reportData = {
+      reporterId: currentUser.uid,
+      reportedId: id,
+      reportedName: profile?.fullName || "Member",
+      category: reportCategory,
+      reason: reportReason,
+      status: "pending",
+      createdAt: serverTimestamp()
+    };
+    addDoc(collection(db, "reports"), reportData)
+      .then(() => {
+        toast({ title: "Report Submitted", description: "Administration will review this case within 24 hours." });
+        setShowReportDialog(false);
+      })
+      .finally(() => setIsReporting(false));
+  };
 
-  if (!profile) return (
+  if (profileLoading || viewerLoading || blockLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
+
+  if (!profile || (isBlockedRelationship && !iBlockedThem)) return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       <Navbar />
       <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">Profile Not Found</h1>
-        <Link href="/discover"><Button>Return to Discover</Button></Link>
+        <div className="h-20 w-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6"><Ban className="h-10 w-10 text-muted-foreground/30" /></div>
+        <h1 className="text-2xl font-bold mb-4 font-headline">Profile Not Found</h1>
+        <p className="text-muted-foreground mb-8">This profile may have been removed or is no longer available.</p>
+        <Link href="/discover"><Button className="rounded-xl px-8 h-12 font-bold">Return to Discover</Button></Link>
       </div>
     </div>
   );
@@ -270,7 +294,6 @@ export default function ProfileDetailPage() {
   const currentPlan = viewerProfile?.membership?.plan || "Free";
   const canInteract = isAdmin || (viewerProfile?.status === 'approved' && !viewerProfile?.isSuspended);
   const isMatched = (existingSentInterest?.status === 'accepted') || (existingReceivedInterest?.status === 'accepted');
-  
   const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
   const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
@@ -331,48 +354,93 @@ export default function ProfileDetailPage() {
                   </Link>
                 ) : (
                   <div className="flex flex-col gap-4 w-full">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {isMatched ? (
-                        <Button disabled className="h-14 md:h-16 flex-1 gap-3 text-base md:text-lg font-bold bg-green-600 text-white border-none opacity-100 shadow-xl rounded-2xl md:rounded-[2rem]">
-                          <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" /> Mutual Match
-                        </Button>
-                      ) : existingSentInterest ? (
-                        <div className="flex flex-col flex-1 gap-3">
-                          <Button disabled className="h-14 md:h-16 w-full gap-3 text-base md:text-lg font-bold bg-muted text-muted-foreground rounded-2xl md:rounded-[2rem]">
-                            {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5 md:h-6 md:w-6" /> : null}
-                            Interest {existingSentInterest.status.toUpperCase()}
+                    {iBlockedThem ? (
+                       <Button onClick={handleUnblockUser} variant="outline" className="h-14 md:h-16 w-full text-destructive border-destructive/20 hover:bg-destructive/5 rounded-2xl font-bold">Unblock Member</Button>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        {isMatched ? (
+                          <Button disabled className="h-14 md:h-16 flex-1 gap-3 text-base md:text-lg font-bold bg-green-600 text-white border-none opacity-100 shadow-xl rounded-2xl md:rounded-[2rem]">
+                            <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" /> Mutual Match
                           </Button>
-                          {existingSentInterest.status === 'pending' && (
-                            <Button variant="ghost" className="text-destructive h-10 md:h-12 gap-2 font-bold hover:bg-destructive/5" onClick={handleWithdrawInterest}>
-                              <Trash2 className="h-4 w-4" /> Withdraw Request
+                        ) : existingSentInterest ? (
+                          <div className="flex flex-col flex-1 gap-3">
+                            <Button disabled className="h-14 md:h-16 w-full gap-3 text-base md:text-lg font-bold bg-muted text-muted-foreground rounded-2xl md:rounded-[2rem]">
+                              {existingSentInterest.status === 'pending' ? <Clock className="h-5 w-5 md:h-6 md:w-6" /> : null}
+                              Interest {existingSentInterest.status.toUpperCase()}
                             </Button>
+                          </div>
+                        ) : existingReceivedInterest ? (
+                          <Link href="/interests" className="flex-1 w-full">
+                            <Button className="h-14 md:h-16 w-full gap-3 text-base md:text-lg font-bold bg-primary text-white shadow-xl rounded-2xl md:rounded-[2rem]">
+                              Respond to Interest
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Button 
+                            onClick={handleSendInterest} 
+                            disabled={isSending || !canInteract}
+                            className="h-14 md:h-16 flex-1 gap-3 text-lg md:text-xl font-bold bg-secondary text-primary-foreground shadow-2xl hover:shadow-primary/30 transition-all rounded-2xl md:rounded-[2rem] active:scale-95"
+                          >
+                            <Heart className="h-5 w-5 md:h-6 md:w-6" /> Send Interest
+                          </Button>
+                        )}
+                        
+                        <div className="flex gap-4">
+                          {(isMatched || canChat || isAdmin) && (
+                            <Link href={canChat ? "/messages" : "/membership"} className="flex-1 sm:w-auto">
+                              <Button variant="outline" className="h-14 md:h-16 w-full sm:w-16 rounded-2xl md:rounded-[2rem] border-2 shadow-xl bg-white hover:bg-muted transition-all">
+                                {canChat ? <MessageSquare className="h-6 w-6 md:h-7 md:w-7" /> : <Lock className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />}
+                                <span className="ml-2 sm:hidden font-bold">{canChat ? "Message" : "Unlock Chat"}</span>
+                              </Button>
+                            </Link>
                           )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="h-14 w-14 md:h-16 md:w-16 rounded-2xl md:rounded-[2rem] border-2 shadow-sm bg-white"><MoreVertical className="h-5 w-5" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-2xl p-2 w-48 shadow-2xl border-none">
+                              <DropdownMenuItem className="rounded-xl gap-2 font-bold text-destructive focus:bg-destructive/5 cursor-pointer py-3" onClick={handleBlockUser}>
+                                <Ban className="h-4 w-4" /> Block Member
+                              </DropdownMenuItem>
+                              <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+                                <DialogTrigger asChild>
+                                  <DropdownMenuItem className="rounded-xl gap-2 font-bold focus:bg-muted cursor-pointer py-3" onSelect={(e) => e.preventDefault()}>
+                                    <Flag className="h-4 w-4" /> Report Profile
+                                  </DropdownMenuItem>
+                                </DialogTrigger>
+                                <DialogContent className="rounded-[2rem] p-8 max-w-lg">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-2xl font-headline text-primary">Report Member</DialogTitle>
+                                    <DialogDescription>Your report is strictly confidential and helps us keep Al Batul safe.</DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-6 py-4">
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Violation Category</label>
+                                      <Select onValueChange={setReportCategory}>
+                                        <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none"><SelectValue placeholder="Choose a category" /></SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                          {REPORT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Detailed Reason</label>
+                                      <Textarea placeholder="Please describe the issue..." className="min-h-[120px] rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={reportReason} onChange={(e) => setReportReason(e.target.value)} />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button className="w-full h-12 rounded-xl font-bold bg-primary text-white" disabled={isReporting || !reportCategory} onClick={handleReportUser}>
+                                      {isReporting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Report"}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      ) : existingReceivedInterest ? (
-                        <Link href="/interests" className="flex-1 w-full">
-                          <Button className="h-14 md:h-16 w-full gap-3 text-base md:text-lg font-bold bg-primary text-white shadow-xl rounded-2xl md:rounded-[2rem]">
-                            {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : 'View Interaction'}
-                          </Button>
-                        </Link>
-                      ) : (
-                        <Button 
-                          onClick={handleSendInterest} 
-                          disabled={isSending || !canInteract}
-                          className="h-14 md:h-16 flex-1 gap-3 text-lg md:text-xl font-bold bg-secondary text-primary-foreground shadow-2xl hover:shadow-primary/30 transition-all rounded-2xl md:rounded-[2rem] active:scale-95"
-                        >
-                          <Heart className="h-5 w-5 md:h-6 md:w-6" /> Send Interest
-                        </Button>
-                      )}
-                      
-                      {(isMatched || canChat || isAdmin) && (
-                        <Link href={canChat ? "/messages" : "/membership"} className="w-full sm:w-auto">
-                          <Button variant="outline" className="h-14 md:h-16 w-full sm:w-16 rounded-2xl md:rounded-[2rem] border-2 shadow-xl bg-white hover:bg-muted transition-all">
-                            {canChat ? <MessageSquare className="h-6 w-6 md:h-7 md:w-7" /> : <Lock className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground" />}
-                            <span className="ml-2 sm:hidden font-bold">{canChat ? "Message" : "Unlock Chat"}</span>
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -393,8 +461,7 @@ export default function ProfileDetailPage() {
                 <ActivityStatus lastActiveAt={profile.lastActiveAt} className="mt-1 bg-white px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-sm border border-border/50" />
               </div>
 
-              {/* AI Compatibility Score Card */}
-              {!isSelf && (
+              {!isSelf && !iBlockedThem && (
                 <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] bg-white overflow-hidden rounded-2xl md:rounded-[3rem] animate-fade-in">
                   <CardHeader className="p-6 md:p-10 pb-4 md:pb-6 flex flex-row items-center justify-between">
                     <CardTitle className="text-xl md:text-2xl font-headline text-primary flex items-center gap-2 md:gap-3">
@@ -428,9 +495,6 @@ export default function ProfileDetailPage() {
                             </div>
                           ))}
                         </div>
-                        <p className="text-[9px] md:text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em] md:tracking-[0.3em] mt-4 md:mt-6 flex items-center gap-2">
-                           <TrendingUp className="h-3 w-3" /> Predictive compatibility analysis for marriage
-                        </p>
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 py-4 text-muted-foreground opacity-50">
@@ -461,7 +525,7 @@ export default function ProfileDetailPage() {
             <section>
               <h3 className="mb-4 md:mb-6 text-2xl md:text-3xl font-bold font-headline text-primary border-b-2 border-primary/10 pb-3 md:pb-4">Personal Narrative</h3>
               <p className="text-base md:text-xl leading-relaxed text-muted-foreground/80 whitespace-pre-wrap font-medium">
-                {profile.about || "This member is currently finalizing their personal introduction. Check back soon for more deep insights into their values and aspirations."}
+                {profile.about || "This member is currently finalizing their personal introduction."}
               </p>
             </section>
 
@@ -486,7 +550,7 @@ export default function ProfileDetailPage() {
                 <Card className="rounded-2xl md:rounded-[3.5rem] bg-muted/20 border-4 border-dashed border-border/50 p-8 md:p-16 text-center shadow-inner">
                   <div className="h-16 w-16 md:h-24 md:w-24 bg-primary/5 rounded-xl md:rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-xl"><Lock className="h-8 w-8 md:h-12 md:w-12 text-primary/30" /></div>
                   <h4 className="text-2xl md:text-3xl font-headline font-bold mb-3 md:mb-4 text-primary">Sacred Boundary</h4>
-                  <p className="text-muted-foreground text-sm md:text-lg mb-8 md:mb-10 leading-relaxed max-w-sm mx-auto font-medium">Direct contact information is shared exclusively with verified **Gold & Premium** members to ensure a safe and respectful environment.</p>
+                  <p className="text-muted-foreground text-sm md:text-lg mb-8 md:mb-10 leading-relaxed max-w-sm mx-auto font-medium">Direct contact information is shared exclusively with verified **Gold & Premium** members.</p>
                   <Link href="/membership" className="w-full inline-block">
                     <Button className="h-14 md:h-16 px-8 md:px-12 gap-2 md:gap-3 text-lg md:text-xl font-bold shadow-2xl rounded-xl md:rounded-[2rem] bg-primary hover:scale-105 transition-transform w-full sm:w-auto">
                       <Crown className="h-5 w-5 md:h-6 md:w-6 text-secondary" /> Access Direct Contact

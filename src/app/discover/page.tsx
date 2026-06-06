@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -40,6 +41,27 @@ export default function DiscoverPage() {
 
   const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
 
+  // Fetch block list for the current user
+  const blockListQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "blocks"), where("blockerId", "==", user.uid));
+  }, [db, user]);
+  
+  const blockedByMeQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "blocks"), where("blockedId", "==", user.uid));
+  }, [db, user]);
+
+  const { data: myBlocks } = useCollection(blockListQuery);
+  const { data: blockedByOthers } = useCollection(blockedByMeQuery);
+
+  const blockedIds = useMemo(() => {
+    const list = new Set<string>();
+    myBlocks?.forEach(b => list.add(b.blockedId));
+    blockedByOthers?.forEach(b => list.add(b.blockerId));
+    return list;
+  }, [myBlocks, blockedByOthers]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -60,7 +82,8 @@ export default function DiscoverPage() {
   const filteredProfiles = useMemo(() => {
     if (!profiles) return [];
     return profiles.filter(p => {
-      if (p.id === user?.uid || p.isSuspended || p.isBanned) return false;
+      // Exclude self, suspended, banned, and blocked users
+      if (p.id === user?.uid || p.isSuspended || p.isBanned || blockedIds.has(p.id)) return false;
 
       const matchesAge = p.age >= ageRange[0] && p.age <= ageRange[1];
       const matchesSect = sectFilter === "all" || p.sect?.toLowerCase() === sectFilter.toLowerCase();
@@ -80,7 +103,7 @@ export default function DiscoverPage() {
       
       return matchesAge && matchesSect && matchesMarital && cityMatch && stateMatch && professionMatch && educationMatch && memberIdMatch && matchesSearch;
     });
-  }, [profiles, ageRange, sectFilter, maritalStatusFilter, cityFilter, stateFilter, professionFilter, educationFilter, memberIdFilter, searchTerm, user]);
+  }, [profiles, ageRange, sectFilter, maritalStatusFilter, cityFilter, stateFilter, professionFilter, educationFilter, memberIdFilter, searchTerm, user, blockedIds]);
 
   const resetFilters = () => {
     setAgeRange([18, 60]);
@@ -93,18 +116,6 @@ export default function DiscoverPage() {
     setEducationFilter("");
     setMemberIdFilter("");
   };
-
-  const activeFilterCount = [
-    sectFilter !== "all",
-    maritalStatusFilter !== "all",
-    cityFilter !== "",
-    stateFilter !== "",
-    professionFilter !== "",
-    educationFilter !== "",
-    memberIdFilter !== "",
-    searchTerm !== "",
-    ageRange[0] !== 18 || ageRange[1] !== 60
-  ].filter(Boolean).length;
 
   if (authLoading || profileLoading) {
     return (
@@ -169,7 +180,7 @@ export default function DiscoverPage() {
               className="gap-2 font-bold h-12 rounded-2xl shadow-sm self-start md:self-center w-full md:w-auto"
             >
               <Filter className="h-5 w-5" />
-              Advanced Filters {activeFilterCount > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white text-[10px]">{activeFilterCount}</Badge>}
+              Advanced Filters
             </Button>
           </div>
 
@@ -202,36 +213,30 @@ export default function DiscoverPage() {
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <MapPin className="h-3 w-3" /> City
                   </label>
-                  <Input placeholder="Search city..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
-                    <MapPin className="h-3 w-3" /> State
-                  </label>
-                  <Input placeholder="Search state..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} />
+                  <Input placeholder="Search city..." className="h-11 rounded-xl bg-muted/30 border-none" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <Briefcase className="h-3 w-3" /> Profession
                   </label>
-                  <Input placeholder="Doctor, Engineer..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} />
+                  <Input placeholder="Doctor, Engineer..." className="h-11 rounded-xl bg-muted/30 border-none" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <GraduationCap className="h-3 w-3" /> Education
                   </label>
-                  <Input placeholder="Degree, Major..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={educationFilter} onChange={(e) => setEducationFilter(e.target.value)} />
+                  <Input placeholder="Degree, Major..." className="h-11 rounded-xl bg-muted/30 border-none" value={educationFilter} onChange={(e) => setEducationFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
                     <Hash className="h-3 w-3" /> Member ID
                   </label>
-                  <Input placeholder="ID prefix..." className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={memberIdFilter} onChange={(e) => setMemberIdFilter(e.target.value)} />
+                  <Input placeholder="ID prefix..." className="h-11 rounded-xl bg-muted/30 border-none" value={memberIdFilter} onChange={(e) => setMemberIdFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Religious Sect</label>
                   <Select onValueChange={setSectFilter} value={sectFilter}>
-                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Sects" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none"><SelectValue placeholder="All Sects" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Sects</SelectItem>
                       {SECT_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -241,7 +246,7 @@ export default function DiscoverPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Marital Status</label>
                   <Select onValueChange={setMaritalStatusFilter} value={maritalStatusFilter}>
-                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-none"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       {MARITAL_STATUS_OPTIONS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
@@ -295,7 +300,7 @@ export default function DiscoverPage() {
                <Search className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/20" />
             </div>
             <h3 className="text-xl md:text-2xl font-headline font-bold text-primary mb-2">No results found</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto mb-8 md:mb-10 font-medium text-sm md:text-base">Try broadening your filters or using different keywords to find more potential matches.</p>
+            <p className="text-muted-foreground max-w-xs mx-auto mb-8 md:mb-10 font-medium text-sm md:text-base">Try broadening your filters to find more potential matches.</p>
             <Button variant="outline" className="font-bold h-12 px-8 rounded-2xl w-full sm:w-auto" onClick={resetFilters}>Clear All Filters</Button>
           </div>
         )}

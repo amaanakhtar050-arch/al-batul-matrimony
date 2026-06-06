@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -61,6 +62,31 @@
       },
       "required": ["fullName", "age", "gender", "sect", "status", "city", "country", "mobileNumber"]
     },
+    "UserBlock": {
+      "title": "User Block",
+      "description": "Represents a block relationship between two users.",
+      "type": "object",
+      "properties": {
+        "blockerId": { "type": "string" },
+        "blockedId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "UserReport": {
+      "title": "User Report",
+      "description": "A report filed against a user for community violations.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "reportedId": { "type": "string" },
+        "reportedName": { "type": "string" },
+        "category": { "type": "string", "enum": ["Fake profile", "Harassment", "Inappropriate content", "Spam", "Scammer", "Other"] },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "reviewed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "actionTaken": { "type": "string" }
+      }
+    },
     "MembershipPayment": {
       "title": "Membership Payment",
       "description": "Records of manual payment submissions for membership upgrades.",
@@ -77,60 +103,6 @@
         "processedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "plan", "amount", "transactionId", "status"]
-    },
-    "InterestRequest": {
-      "title": "Interest Request",
-      "description": "Matrimonial interest requests between members.",
-      "type": "object",
-      "properties": {
-        "fromUserId": { "type": "string" },
-        "fromUserName": { "type": "string" },
-        "toUserId": { "type": "string" },
-        "toUserName": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["fromUserId", "toUserId", "status"]
-    },
-    "ChatMessage": {
-      "title": "ChatMessage",
-      "description": "Individual messages within a private chat conversation.",
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "senderId": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "read": { "type": "boolean", "default": false }
-      },
-      "required": ["text", "senderId", "timestamp"]
-    },
-    "Notification": {
-      "title": "Notification",
-      "description": "A notification message for a user.",
-      "type": "object",
-      "properties": {
-        "type": { "type": "string" },
-        "title": { "type": "string" },
-        "message": { "type": "string" },
-        "senderId": { "type": "string" },
-        "receiverId": { "type": "string" },
-        "read": { "type": "boolean", "default": false },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["type", "title", "message", "read", "createdAt"]
-    },
-    "PlatformSettings": {
-      "title": "Platform Settings",
-      "description": "Global configuration settings for the Al Batul platform.",
-      "type": "object",
-      "properties": {
-        "siteName": { "type": "string" },
-        "maintenanceMode": { "type": "boolean" },
-        "registrationEnabled": { "type": "boolean" },
-        "upiId": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -144,6 +116,14 @@
     "/users/{userId}/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Stores user notifications."
+    },
+    "/blocks/{blockId}": {
+      "schema": "UserBlock",
+      "description": "Stores blocking relationships."
+    },
+    "/reports/{reportId}": {
+      "schema": "UserReport",
+      "description": "Stores community safety reports."
     },
     "/payments/{paymentId}": {
       "schema": "MembershipPayment",
