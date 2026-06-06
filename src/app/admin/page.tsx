@@ -74,7 +74,10 @@ export default function AdminDashboard() {
       console.log('[Admin Guard] User UID:', user?.uid);
       console.log('[Admin Guard] User Profile Role:', profile?.role);
 
-      if (!user || profile?.role !== "admin") {
+      // Robust check: ensure user is logged in and has the admin role string
+      const isActuallyAdmin = user && profile?.role === "admin";
+
+      if (!isActuallyAdmin) {
         console.warn('[Admin Guard] Unauthorized access. Redirecting to /dashboard.');
         router.replace("/dashboard");
       } else {

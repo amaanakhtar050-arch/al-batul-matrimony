@@ -69,7 +69,8 @@ export default function LoginPage() {
           updatedAt: serverTimestamp(),
         };
 
-        await setDoc(userDocRef, initialProfile, { merge: true })
+        // Fixed: changed userDocRef to userRef
+        await setDoc(userRef, initialProfile, { merge: true })
           .catch(async (e) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
               path: userRef.path,
