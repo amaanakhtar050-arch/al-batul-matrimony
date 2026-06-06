@@ -19,6 +19,7 @@ import { Camera, Save, ArrowLeft, Plus, ShieldCheck, Upload, Star, ArrowUp, Arro
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { compressImage } from '@/lib/image-utils';
 
 export default function SetupProfilePage() {
   const { user, loading: authLoading } = useUser();
@@ -45,8 +46,8 @@ export default function SetupProfilePage() {
     state: '',
     country: '',
     languagesSpoken: '',
-    photoUrl: '', // Primary Photo
-    photos: [] as string[], // Gallery array
+    photoUrl: '', 
+    photos: [] as string[], 
     idPhotoUrl: '',
     selfiePhotoUrl: '',
     about: '',
@@ -67,7 +68,6 @@ export default function SetupProfilePage() {
   const idInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
-  // Enforce membership limits: Free (2), Premium (6)
   const planLimit = existingProfileData?.membership?.plan === 'Premium' ? 6 : 2;
 
   useEffect(() => {
@@ -87,7 +87,6 @@ export default function SetupProfilePage() {
           setExistingProfileData(data);
           setIsEditing(true);
           
-          // Migration: if photoUrl exists but photos is empty, populate photos
           const initialPhotos = data.photos || (data.photoUrl ? [data.photoUrl] : []);
           const initialPrimary = data.photoUrl || (initialPhotos.length > 0 ? initialPhotos[0] : '');
 
@@ -132,7 +131,7 @@ export default function SetupProfilePage() {
     checkExistingProfile();
   }, [user, authLoading, db, router]);
 
-  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !db || !user) return;
 
@@ -140,27 +139,19 @@ export default function SetupProfilePage() {
       toast({
         variant: "destructive",
         title: "Photo Limit Reached",
-        description: `Your ${existingProfileData?.membership?.plan || 'Free'} plan allows up to ${planLimit} photos. Upgrade to Premium for 6 slots.`,
-      });
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        variant: "destructive",
-        title: "File too large",
-        description: "Please upload an image smaller than 2MB.",
+        description: `Your ${existingProfileData?.membership?.plan || 'Free'} plan allows up to ${planLimit} photos.`,
       });
       return;
     }
 
     setIsUploadingPhoto(true);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      const newPhotos = [...formData.photos, base64String];
-      // If no primary photo yet, set this one
-      const newPrimary = formData.photoUrl || base64String;
+    reader.onloadend = async () => {
+      const rawBase64 = reader.result as string;
+      const compressed = await compressImage(rawBase64);
+      
+      const newPhotos = [...formData.photos, compressed];
+      const newPrimary = formData.photoUrl || compressed;
       
       setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
       setIsUploadingPhoto(false);
@@ -168,9 +159,22 @@ export default function SetupProfilePage() {
     reader.readAsDataURL(file);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const rawBase64 = reader.result as string;
+      const compressed = await compressImage(rawBase64, 1000, 0.6); // Slightly lower quality for verification docs
+      setFormData(prev => ({ ...prev, [field]: compressed }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const setAsPrimary = (photo: string) => {
     setFormData(prev => ({ ...prev, photoUrl: photo }));
-    toast({ title: "Primary Photo Updated", description: "This photo will be displayed in search results." });
+    toast({ title: "Primary Photo Updated" });
   };
 
   const deletePhoto = (index: number) => {
@@ -197,18 +201,6 @@ export default function SetupProfilePage() {
     setFormData(prev => ({ ...prev, photos: newPhotos }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setFormData(prev => ({ ...prev, [field]: base64String }));
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !user) return;
@@ -217,9 +209,6 @@ export default function SetupProfilePage() {
     const userDocRef = doc(db, 'users', user.uid);
     const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
     
-    const currentStatus = existingProfileData?.status || 'pending';
-    const nextStatus = (currentStatus === 'approved') ? 'approved' : 'pending';
-
     const profileData = {
       fullName: formData.fullName,
       dob: formData.dob,
@@ -244,7 +233,6 @@ export default function SetupProfilePage() {
       idPhotoUrl: formData.idPhotoUrl,
       selfiePhotoUrl: formData.selfiePhotoUrl,
       about: formData.about,
-      status: nextStatus,
       isProfileComplete: true,
       lastActiveAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -257,38 +245,22 @@ export default function SetupProfilePage() {
       }
     };
 
-    const finalData = isEditing ? profileData : { 
-      ...profileData, 
-      createdAt: serverTimestamp(), 
-      membership: { plan: 'Free' }, 
-      role: 'user',
-      isSuspended: false,
-      isBanned: false
-    };
-
-    setDoc(userDocRef, finalData, { merge: true })
+    setDoc(userDocRef, profileData, { merge: true })
       .then(() => {
-        toast({
-          title: isEditing ? "Profile Updated" : "Profile Submitted",
-          description: "Your changes have been saved successfully.",
-        });
+        toast({ title: isEditing ? "Profile Updated" : "Profile Submitted" });
         router.push('/dashboard');
       })
       .catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: userDocRef.path,
           operation: 'write',
-          requestResourceData: finalData,
+          requestResourceData: profileData,
         }));
       })
       .finally(() => setSaving(false));
   };
 
-  if (authLoading || checkingProfile) return (
-    <div className="flex h-screen items-center justify-center">
-      <Loader2 className="h-10 w-10 animate-spin text-primary" />
-    </div>
-  );
+  if (authLoading || checkingProfile) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -308,14 +280,13 @@ export default function SetupProfilePage() {
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid gap-8 lg:grid-cols-3">
               <aside className="lg:col-span-1 space-y-6">
-                {/* Profile Gallery Section */}
                 <Card className="border-none shadow-md overflow-hidden bg-white">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-bold text-primary flex items-center justify-between">
                       Profile Gallery
                       <Badge variant="outline" className="text-[10px]">{formData.photos.length}/{planLimit}</Badge>
                     </CardTitle>
-                    <CardDescription>Upload up to {planLimit} photos. Mark one as primary.</CardDescription>
+                    <CardDescription>Optimized up to {planLimit} photos.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
@@ -332,16 +303,13 @@ export default function SetupProfilePage() {
                                <Button type="button" size="icon" variant="destructive" title="Delete photo" className="h-7 w-7 rounded-full" onClick={() => deletePhoto(idx)}><Trash2 className="h-3 w-3" /></Button>
                              </div>
                           </div>
-                          {formData.photoUrl === photo && (
-                            <div className="absolute top-2 left-2 bg-primary text-white p-1 rounded-full shadow-sm"><Star className="h-3 w-3 fill-current" /></div>
-                          )}
                         </div>
                       ))}
                       {formData.photos.length < planLimit && (
                         <button 
                           type="button" 
                           onClick={() => galleryInputRef.current?.click()}
-                          className="aspect-[3/4] rounded-xl border-2 border-dashed border-muted hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground/40 hover:text-primary/40"
+                          className="aspect-[3/4] rounded-xl border-2 border-dashed border-muted hover:border-primary/50 flex flex-col items-center justify-center text-muted-foreground/40 hover:text-primary/40"
                         >
                           {isUploadingPhoto ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
                           <span className="text-[10px] font-bold mt-1 uppercase">Add Photo</span>
@@ -352,41 +320,24 @@ export default function SetupProfilePage() {
                   </CardContent>
                 </Card>
 
-                {/* Identity Verification */}
                 <Card className="border-none shadow-md bg-accent/20">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
-                      <ShieldCheck className="h-5 w-5" /> Identity Verification
+                      <ShieldCheck className="h-5 w-5" /> Verification
                     </CardTitle>
-                    <CardDescription className="text-xs">Confidential. Required for approval.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground">Government ID Proof</Label>
-                      <div className="relative aspect-video rounded-xl bg-white/50 border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/80 transition-colors" onClick={() => idInputRef.current?.click()}>
-                        {formData.idPhotoUrl ? (
-                          <Image src={formData.idPhotoUrl} alt="ID Scan" fill className="object-cover" />
-                        ) : (
-                          <div className="text-center">
-                            <Upload className="h-6 w-6 mx-auto mb-1 text-primary/40" />
-                            <p className="text-[10px] font-bold text-primary/40 uppercase">Upload ID Scan</p>
-                          </div>
-                        )}
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">ID Proof</Label>
+                      <div className="relative aspect-video rounded-xl bg-white border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => idInputRef.current?.click()}>
+                        {formData.idPhotoUrl ? <Image src={formData.idPhotoUrl} alt="ID" fill className="object-cover" /> : <Upload className="h-6 w-6 text-primary/40" />}
                       </div>
                       <input type="file" ref={idInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'idPhotoUrl')} />
                     </div>
-
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground">Verification Selfie</Label>
-                      <div className="relative aspect-square rounded-xl bg-white/50 border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-white/80 transition-colors" onClick={() => selfieInputRef.current?.click()}>
-                        {formData.selfiePhotoUrl ? (
-                          <Image src={formData.selfiePhotoUrl} alt="Selfie" fill className="object-cover" />
-                        ) : (
-                          <div className="text-center">
-                            <Camera className="h-6 w-6 mx-auto mb-1 text-primary/40" />
-                            <p className="text-[10px] font-bold text-primary/40 uppercase">Upload Selfie</p>
-                          </div>
-                        )}
+                      <Label className="text-xs font-bold uppercase text-muted-foreground">Selfie</Label>
+                      <div className="relative aspect-square rounded-xl bg-white border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => selfieInputRef.current?.click()}>
+                        {formData.selfiePhotoUrl ? <Image src={formData.selfiePhotoUrl} alt="Selfie" fill className="object-cover" /> : <Camera className="h-6 w-6 text-primary/40" />}
                       </div>
                       <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'selfiePhotoUrl')} />
                     </div>
@@ -446,25 +397,11 @@ export default function SetupProfilePage() {
                 </Card>
 
                 <Card className="border-none shadow-md">
-                  <CardHeader><CardTitle className="font-headline text-2xl text-primary">Professional & Lifestyle</CardTitle></CardHeader>
-                  <CardContent className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="education">Education</Label>
-                      <Input id="education" value={formData.education} onChange={(e) => setFormData({...formData, education: e.target.value})} placeholder="e.g. Master's in IT" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="occupation">Occupation</Label>
-                      <Input id="occupation" value={formData.occupation} onChange={(e) => setFormData({...formData, occupation: e.target.value})} placeholder="e.g. Software Engineer" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-md">
                   <CardHeader><CardTitle className="font-headline text-2xl text-primary">About Me</CardTitle></CardHeader>
                   <CardContent>
                     <Textarea 
                       id="about" 
-                      placeholder="Share your values, interests, and what you're looking for in a partner..." 
+                      placeholder="Share your values and aspirations..." 
                       className="min-h-[150px]"
                       value={formData.about}
                       onChange={(e) => setFormData({...formData, about: e.target.value})}
@@ -474,7 +411,7 @@ export default function SetupProfilePage() {
                   <CardFooter className="flex justify-end pt-4">
                     <Button type="submit" size="lg" className="gap-2 font-bold px-12 h-14 shadow-lg" disabled={saving}>
                       <Save className="h-4 w-4" />
-                      {saving ? 'Processing...' : (isEditing ? 'Save Changes' : 'Submit Profile')}
+                      {saving ? 'Saving...' : 'Save Profile'}
                     </Button>
                   </CardFooter>
                 </Card>

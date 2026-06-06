@@ -18,7 +18,6 @@ import {
   Lock, 
   Zap,
   Search,
-  MessageSquare,
   Camera,
   Loader2,
   Eye,
@@ -27,13 +26,16 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
-import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, limit, getDocs, doc, addDoc, serverTimestamp, updateDoc, arrayUnion } from "firebase/firestore";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where, limit, getDocs, doc, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/image-utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
@@ -131,28 +133,34 @@ export default function DashboardPage() {
       }
     }
     if (profile && profile.status === 'approved' && !aiSuggestions && !loadingSuggestions) fetchSuggestions();
-  }, [profile?.id, profile?.status, db, user]);
+  }, [profile?.id, profile?.status, db, user, aiSuggestions, loadingSuggestions]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !db || !user) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "File too large", description: "Limit 2MB." });
-      return;
-    }
-
     setIsUploadingPhoto(true);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
+    reader.onloadend = async () => {
+      const rawBase64 = reader.result as string;
+      const compressed = await compressImage(rawBase64);
+      
       const userRef = doc(db, 'users', user.uid);
-      updateDoc(userRef, { 
-        photoUrl: base64String, 
-        photos: arrayUnion(base64String),
+      const updates = { 
+        photoUrl: compressed, 
+        photos: arrayUnion(compressed),
         updatedAt: serverTimestamp() 
-      })
+      };
+
+      updateDoc(userRef, updates)
         .then(() => toast({ title: "Photo Updated" }))
+        .catch(async (e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'update',
+            requestResourceData: updates
+          }));
+        })
         .finally(() => setIsUploadingPhoto(false));
     };
     reader.readAsDataURL(file);
@@ -169,7 +177,7 @@ export default function DashboardPage() {
           <ShieldAlert className="h-16 w-16 text-destructive" />
         </div>
         <h1 className="text-4xl font-bold mb-4 font-headline text-primary">Account Restricted</h1>
-        <p className="text-muted-foreground max-w-sm leading-relaxed font-medium">Your access to the platform has been suspended by administration. Please contact support for details.</p>
+        <p className="text-muted-foreground max-w-sm leading-relaxed font-medium">Your access to the platform has been suspended by administration.</p>
         <Button variant="outline" className="mt-12 h-14 px-12 rounded-[2rem] font-bold" onClick={() => window.location.href = '/'}>Back to Home</Button>
       </div>
     );
@@ -180,17 +188,17 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto flex items-center justify-center px-6 py-24">
-          <Card className="w-full max-w-xl text-center border-none shadow-[0_50px_100px_rgba(0,0,0,0.1)] rounded-[4rem] p-16 overflow-hidden bg-white">
+          <Card className="w-full max-w-xl text-center border-none shadow-[0_50px_100px_rgba(0,0,0,0.1)] rounded-[4rem] p-16 bg-white">
             <CardHeader className="space-y-6">
               <div className="h-32 w-32 bg-primary/5 rounded-[3rem] flex items-center justify-center mx-auto mb-4">
                 <UserPlus className="h-16 w-16 text-primary" />
               </div>
               <CardTitle className="text-5xl font-headline text-primary">Begin Your Journey</CardTitle>
-              <CardDescription className="text-xl leading-relaxed text-muted-foreground/70">Complete your details to be verified by our administrative team and start exploring matches.</CardDescription>
+              <CardDescription className="text-xl text-muted-foreground/70">Complete your profile to be verified by our team.</CardDescription>
             </CardHeader>
             <CardFooter className="pt-12">
               <Link href="/setup-profile" className="w-full">
-                <Button className="w-full h-20 text-2xl font-bold shadow-2xl rounded-[2.5rem] bg-primary hover:scale-[1.02] transition-transform">Complete Profile</Button>
+                <Button className="w-full h-20 text-2xl font-bold rounded-[2.5rem] bg-primary">Complete Profile</Button>
               </Link>
             </CardFooter>
           </Card>
@@ -206,12 +214,11 @@ export default function DashboardPage() {
       <Navbar />
       
       <main className="container mx-auto px-6 py-12 lg:px-12 max-w-7xl">
-        {/* Profile Header */}
         <section className="mb-16 animate-fade-in">
           <div className="flex flex-col items-start gap-10 md:flex-row md:items-center justify-between">
             <div className="flex items-center gap-10">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                <div className="h-40 w-40 overflow-hidden rounded-[3.5rem] bg-white relative shadow-2xl border-4 border-white ring-1 ring-primary/10 group-hover:ring-primary/40 transition-all">
+                <div className="h-40 w-40 overflow-hidden rounded-[3.5rem] bg-white relative shadow-2xl border-4 border-white group-hover:ring-primary/40 transition-all">
                   {profile.photoUrl ? (
                     <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover transition-transform group-hover:scale-105" />
                   ) : (
@@ -229,10 +236,10 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap items-center gap-4">
                    <Badge className={cn("h-9 px-5 gap-2 text-[11px] font-bold border-none shadow-xl tracking-widest", profile.status === 'approved' ? 'bg-green-600' : 'bg-muted text-muted-foreground')}>
                       {profile.status === 'approved' ? <ShieldCheck className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                      {profile.status === 'approved' ? 'VERIFIED' : 'PENDING APPROVAL'}
+                      {profile.status === 'approved' ? 'VERIFIED' : 'PENDING'}
                    </Badge>
                    <Badge className="h-9 px-5 gap-2 bg-white text-primary border-none text-[11px] font-bold shadow-xl">
-                      <Crown className="h-4 w-4 text-secondary" /> {planName.toUpperCase()} MEMBER
+                      <Crown className="h-4 w-4 text-secondary" /> {planName.toUpperCase()}
                    </Badge>
                 </div>
               </div>
@@ -246,26 +253,20 @@ export default function DashboardPage() {
         </section>
 
         <div className="grid gap-12 lg:grid-cols-12">
-          {/* Main Content Area */}
           <div className="lg:col-span-8 space-y-12">
-            {/* AI Recommendations Card */}
             <Card className={cn("border-none shadow-[0_40px_80px_rgba(0,0,0,0.08)] overflow-hidden rounded-[4rem] transition-all", profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-white')}>
               <CardHeader className="p-12 pb-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-4 text-4xl font-headline">
                     <Sparkles className="h-10 w-10 text-secondary" /> Smart Matches
                   </CardTitle>
-                  <Link href="/discover" className="hidden sm:block">
-                    <Button variant="secondary" className="font-bold rounded-2xl h-10">Discover All</Button>
-                  </Link>
                 </div>
               </CardHeader>
               <CardContent className="p-12 pt-0">
                 {profile.status !== 'approved' ? (
                   <div className="py-24 text-center">
                     <div className="h-20 w-20 bg-muted/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8"><Lock className="h-10 w-10 text-muted-foreground/30" /></div>
-                    <p className="text-xl font-bold opacity-40">Your account is being verified.</p>
-                    <p className="text-sm opacity-30 max-w-xs mx-auto mt-2">Personalized matches will appear here once approved.</p>
+                    <p className="text-xl font-bold opacity-40">Verification pending.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -281,14 +282,14 @@ export default function DashboardPage() {
                              <p className="text-lg font-medium leading-relaxed opacity-95 font-body">"{suggestion.reason}"</p>
                           </div>
                           <Link href={`/profiles/${suggestion.profileId}`}>
-                            <Button variant="secondary" size="lg" className="font-bold h-14 px-10 rounded-3xl shadow-2xl bg-white text-primary hover:bg-muted transition-transform active:scale-95">View Profile</Button>
+                            <Button variant="secondary" size="lg" className="font-bold h-14 px-10 rounded-3xl shadow-2xl bg-white text-primary">View Profile</Button>
                           </Link>
                         </div>
                       ))
                     ) : (
                       <div className="text-center py-24 bg-white/5 rounded-[3.5rem]">
                         <Heart className="mx-auto h-16 w-16 mb-6 opacity-20" />
-                        <p className="text-2xl font-headline font-bold opacity-40">Curating the perfect matches...</p>
+                        <p className="text-2xl font-headline font-bold opacity-40">Looking for matches...</p>
                       </div>
                     )}
                   </div>
@@ -296,7 +297,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Navigation Grid */}
             <section>
                <h2 className="text-3xl font-bold font-headline mb-8 text-primary px-4">Executive Dashboard</h2>
                <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                     { href: "/discover", icon: Search, label: "Deep Search", color: "bg-blue-50 text-blue-600" }
                   ].map((act, i) => (
                     <Link key={i} href={act.href} className="group h-full">
-                      <Card className="hover:bg-white transition-all cursor-pointer border-none shadow-[0_20px_40px_rgba(0,0,0,0.04)] h-full flex flex-col items-center justify-center p-10 text-center gap-6 rounded-[3rem] border border-transparent hover:border-primary/5 hover:-translate-y-2 group">
+                      <Card className="hover:bg-white transition-all cursor-pointer border-none shadow-[0_20px_40px_rgba(0,0,0,0.04)] h-full flex flex-col items-center justify-center p-10 text-center gap-6 rounded-[3rem] hover:border-primary/5 hover:-translate-y-2 group">
                          <div className={cn("h-20 w-20 rounded-[2rem] flex items-center justify-center transition-all shadow-lg group-hover:scale-110", act.color)}>
                             <act.icon className="h-10 w-10" />
                          </div>
@@ -319,9 +319,7 @@ export default function DashboardPage() {
             </section>
           </div>
 
-          {/* Sidebar Area */}
           <div className="lg:col-span-4 space-y-12">
-            {/* Completion Progress Card */}
             <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] bg-white overflow-hidden rounded-[4rem]">
                <CardHeader className="p-10 pb-6">
                   <div className="flex items-center justify-between mb-6">
@@ -331,36 +329,32 @@ export default function DashboardPage() {
                   <Progress value={completionPercentage} className="h-4 bg-muted rounded-full" />
                </CardHeader>
                <CardContent className="p-10 pt-4">
-                  <p className="text-sm text-muted-foreground/80 leading-relaxed mb-8 font-medium">Profiles with 100% completion receive up to 5x more meaningful interest requests.</p>
+                  <p className="text-sm text-muted-foreground/80 leading-relaxed mb-8 font-medium">Complete profiles get 5x more meaningful interest requests.</p>
                   {completionPercentage < 100 && (
                     <Link href="/setup-profile">
-                      <Button variant="outline" className="w-full text-base font-bold h-16 gap-3 rounded-[2rem] border-2 border-primary/10 hover:bg-muted">Finalize Details <ArrowRight className="h-5 w-5" /></Button>
+                      <Button variant="outline" className="w-full text-base font-bold h-16 gap-3 rounded-[2rem] border-2 border-primary/10">Finalize Details <ArrowRight className="h-5 w-5" /></Button>
                     </Link>
                   )}
                </CardContent>
             </Card>
 
-            {/* Membership Card */}
             <Card className="border-none shadow-[0_40px_80px_rgba(0,0,0,0.06)] rounded-[4rem] overflow-hidden bg-white">
               <CardHeader className="p-10 bg-muted/10 border-b border-muted">
                 <CardTitle className="text-2xl font-headline text-primary">Member Status</CardTitle>
               </CardHeader>
               <CardContent className="p-10 space-y-10">
-                <div className="p-8 bg-background rounded-[3rem] flex items-center justify-between border border-primary/5 shadow-inner">
+                <div className="p-8 bg-background rounded-[3rem] flex items-center justify-between border border-primary/5">
                     <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Active Plan</p>
-                        <p className="font-bold text-3xl text-primary font-headline tracking-tight">{planName}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Plan</p>
+                        <p className="font-bold text-3xl text-primary font-headline">{planName}</p>
                     </div>
                     {planName === 'Free' ? <Zap className="h-12 w-12 text-orange-400" /> : <Crown className="h-12 w-12 text-primary" />}
                 </div>
                 <Link href="/membership" className="block">
-                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-20 rounded-[2.5rem] text-xl shadow-2xl bg-primary hover:scale-[1.02] transition-transform">
+                    <Button variant={planName === 'Free' ? 'default' : 'outline'} className="w-full font-bold h-20 rounded-[2.5rem] text-xl shadow-2xl bg-primary">
                         {planName === 'Premium' ? "Manage Benefits" : "Unlock Premium"}
                     </Button>
                 </Link>
-                <div className="text-center">
-                  <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.3em]">Safe & Secure Processing</p>
-                </div>
               </CardContent>
             </Card>
           </div>
