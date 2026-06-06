@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth, useFirestore } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn, KeyRound, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -44,15 +46,47 @@ export default function LoginPage() {
         return;
       }
 
-      // Check if profile is complete
+      // Check if profile exists, if not create a baseline record
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
-      const userData = userSnap.data();
       
-      if (!userSnap.exists() || !userData?.isProfileComplete) {
+      if (!userSnap.exists()) {
+        const initialProfile = {
+          fullName: user.displayName || '',
+          email: user.email,
+          role: 'user',
+          status: 'pending',
+          photoUrl: user.photoURL || '',
+          isProfileComplete: false,
+          isSuspended: false,
+          isBanned: false,
+          membership: { plan: 'Free' },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(userRef, initialProfile, { merge: true })
+          .catch(async (e) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: userRef.path,
+              operation: 'create',
+              requestResourceData: initialProfile
+            }));
+          });
+        
         toast({
           title: "Welcome!",
           description: "Please complete your profile to access all features.",
+        });
+        router.push('/setup-profile');
+        return;
+      }
+
+      const userData = userSnap.data();
+      if (!userData?.isProfileComplete) {
+        toast({
+          title: "Welcome back!",
+          description: "Please complete your profile to get started.",
         });
         router.push('/setup-profile');
       } else {

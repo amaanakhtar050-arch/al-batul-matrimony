@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth';
 import { useAuth, useFirestore } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -59,9 +59,11 @@ export default function RegisterPage() {
       // Create initial user profile in Firestore immediately
       const userDocRef = doc(db, 'users', user.uid);
       const initialProfile = {
+        fullName: '', // Will be updated in setup-profile
         email: user.email,
-        status: 'pending',
         role: 'user',
+        status: 'pending',
+        photoUrl: '',
         isProfileComplete: false,
         isSuspended: false,
         isBanned: false,
