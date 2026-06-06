@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -148,6 +149,14 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-6 md:flex">
+          {isAdmin && (
+            <Link href="/admin" className={cn(
+              "flex items-center gap-1.5 text-sm font-bold transition-colors",
+              pathname.startsWith('/admin') ? "text-primary" : "text-muted-foreground hover:text-primary"
+            )}>
+              <ShieldAlert className="h-4 w-4" /> Admin
+            </Link>
+          )}
           {navLinks.map((link) => {
             const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
             const active = pathname === link.href;
@@ -176,11 +185,6 @@ export function Navbar() {
               </Link>
             );
           })}
-          {isAdmin && (
-            <Link href="/admin" className="flex items-center gap-1.5 text-sm font-bold text-primary hover:opacity-80">
-              <ShieldAlert className="h-4 w-4" /> Admin
-            </Link>
-          )}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3">
@@ -310,6 +314,11 @@ export function Navbar() {
             <SheetContent side="right">
               <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
               <div className="flex flex-col gap-6 py-8">
+                {isAdmin && (
+                  <Link href="/admin" className="text-lg font-bold text-primary flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5" /> Admin Panel
+                  </Link>
+                )}
                 <Link href="/discover" className={cn("text-lg font-medium flex items-center gap-2", (!hasProfile || !isApproved) && !isAdmin && "opacity-50 cursor-not-allowed")} onClick={handleSearchClick as any}>
                   <Search className="h-5 w-5" /> Search
                 </Link>
@@ -331,7 +340,6 @@ export function Navbar() {
                     </Link>
                   );
                 })}
-                {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
                 <Link href="/notifications" className="text-lg font-medium">Notifications</Link>
                 <Link href="/messages" className="text-lg font-medium">Messages</Link>
                 <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>

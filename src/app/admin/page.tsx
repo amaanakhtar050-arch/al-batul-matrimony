@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -20,14 +21,15 @@ import {
   MoreVertical,
   ShieldCheck,
   XCircle,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from "@/firebase";
 import { 
   collection, 
   doc, 
@@ -42,15 +44,34 @@ import {
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const PLANS_LIST = ["Free", "Basic", "Silver", "Gold", "Premium"];
 
 export default function AdminDashboard() {
   const db = useFirestore();
+  const { user, loading: authLoading } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "users", user.uid);
+  }, [db, user]);
+
+  const { data: profile, loading: profileLoading } = useDoc(userProfileRef);
+
+  // Security: Redirect non-admins
+  useEffect(() => {
+    if (!authLoading && !profileLoading) {
+      if (!user || profile?.role !== "admin") {
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, profile, authLoading, profileLoading, router]);
 
   const paymentsQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -90,7 +111,6 @@ export default function AdminDashboard() {
     }).then(() => {
       toast({ title: "Payment Approved", description: `${plan} membership activated.` });
       
-      // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
         title: '💳 Membership Plan Activated',
@@ -112,11 +132,10 @@ export default function AdminDashboard() {
     }).then(() => {
       toast({ title: "Payment Rejected", variant: "destructive" });
 
-      // Notify User
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_rejected',
         title: '❌ Payment Verification Failed',
-        message: `Your membership payment for the plan was rejected. Please verify your transaction details and resubmit proof of payment.`,
+        message: `Your membership payment was rejected. Please verify your transaction details and resubmit proof of payment.`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -131,14 +150,13 @@ export default function AdminDashboard() {
     updateDoc(userRef, updates).then(() => {
       toast({ title: "Updated successfully" });
 
-      // Notify User on Status Change
       if (updates.status) {
         addDoc(collection(db, 'users', userId, 'notifications'), {
           type: updates.status === 'approved' ? 'verification_approved' : 'verification_rejected',
           title: updates.status === 'approved' ? '✅ Profile Verification Successful' : '❌ Profile Verification Rejected',
           message: updates.status === 'approved' 
-            ? 'Congratulations! Your profile has been verified by our team and is now visible to other members looking for matches.' 
-            : 'Your profile verification was rejected. Please ensure your identity documents are clear and your profile information is complete.',
+            ? 'Congratulations! Your profile has been verified and is now visible to other members.' 
+            : 'Your profile verification was rejected. Please ensure your documents are clear.',
           senderId: 'admin',
           receiverId: userId,
           read: false,
@@ -163,7 +181,7 @@ export default function AdminDashboard() {
       addDoc(collection(db, 'users', userId, 'notifications'), {
         type: 'membership_upgraded',
         title: '⭐ Membership Manually Updated',
-        message: `Your account has been upgraded to the ${plan} plan by an administrator. Enjoy the premium features!`,
+        message: `Your account has been upgraded to the ${plan} plan by an administrator.`,
         senderId: 'admin',
         receiverId: userId,
         read: false,
@@ -173,7 +191,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (!db || !confirm("Delete this user permanently? This action cannot be undone.")) return;
+    if (!db || !confirm("Delete this user permanently?")) return;
     const userRef = doc(db, "users", userId);
     deleteDoc(userRef).then(() => {
       toast({ title: "User Deleted", variant: "destructive" });
@@ -194,6 +212,16 @@ export default function AdminDashboard() {
   );
 
   const pendingVerifications = allUsers?.filter(u => u.status === 'pending' && u.isProfileComplete);
+
+  if (authLoading || profileLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user || profile?.role !== "admin") return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -382,9 +410,11 @@ export default function AdminDashboard() {
                           <Badge variant={user.status === 'approved' ? 'default' : 'secondary'} className="text-[9px] h-4">
                             {user.status}
                           </Badge>
+                          <Badge variant="outline" className={cn("text-[9px] h-4", user.role === 'admin' ? "text-primary border-primary" : "text-muted-foreground")}>
+                            {user.role || 'user'}
+                          </Badge>
                           {user.isSuspended && <Badge variant="outline" className="text-orange-600 border-orange-200 text-[9px] h-4">Suspended</Badge>}
                           {user.isBanned && <Badge variant="destructive" className="text-[9px] h-4">Banned</Badge>}
-                          {!user.isProfileComplete && <Badge variant="outline" className="text-muted-foreground text-[9px] h-4">Incomplete</Badge>}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
