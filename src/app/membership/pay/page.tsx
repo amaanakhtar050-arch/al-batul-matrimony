@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -11,6 +10,7 @@ import {
   Copy, 
   QrCode, 
   ArrowLeft, 
+  ArrowRight,
   Clock, 
   ShieldCheck, 
   ChevronRight, 
