@@ -26,14 +26,15 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useStorage } from "@/firebase";
 import { collection, query, where, limit, getDocs, doc, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { compressImage } from "@/lib/image-utils";
+import { compressImage, dataURLToBlob } from "@/lib/image-utils";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -43,7 +44,7 @@ function UserAvatar({ userId, className }: { userId: string, className?: string 
   const { data: profile } = useDoc(userRef);
   
   return (
-    <div className={cn("relative overflow-hidden rounded-[2rem] bg-muted shadow-lg", className)}>
+    <div className={cn("relative overflow-hidden rounded-full bg-muted shadow-lg", className)}>
       {profile?.photoUrl ? (
         <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" />
       ) : (
@@ -58,6 +59,7 @@ function UserAvatar({ userId, className }: { userId: string, className?: string 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
+  const storage = useStorage();
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,31 +139,34 @@ export default function DashboardPage() {
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !db || !user) return;
+    if (!file || !db || !user || !storage) return;
 
     setIsUploadingPhoto(true);
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const rawBase64 = reader.result as string;
-      const compressed = await compressImage(rawBase64);
-      
-      const userRef = doc(db, 'users', user.uid);
-      const updates = { 
-        photoUrl: compressed, 
-        photos: arrayUnion(compressed),
-        updatedAt: serverTimestamp() 
-      };
+      try {
+        const rawBase64 = reader.result as string;
+        const compressed = await compressImage(rawBase64);
+        const blob = await dataURLToBlob(compressed);
+        
+        const fileRef = ref(storage, `users/${user.uid}/photos/${Date.now()}.jpg`);
+        await uploadBytes(fileRef, blob);
+        const downloadURL = await getDownloadURL(fileRef);
+        
+        const userRef = doc(db, 'users', user.uid);
+        const updates = { 
+          photoUrl: downloadURL, 
+          photos: arrayUnion(downloadURL),
+          updatedAt: serverTimestamp() 
+        };
 
-      updateDoc(userRef, updates)
-        .then(() => toast({ title: "Photo Updated" }))
-        .catch(async (e) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: userRef.path,
-            operation: 'update',
-            requestResourceData: updates
-          }));
-        })
-        .finally(() => setIsUploadingPhoto(false));
+        await updateDoc(userRef, updates);
+        toast({ title: "Photo Updated" });
+      } catch (err: any) {
+        toast({ variant: "destructive", title: "Upload Failed", description: err.message });
+      } finally {
+        setIsUploadingPhoto(false);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -218,7 +223,7 @@ export default function DashboardPage() {
           <div className="flex flex-col items-start gap-10 md:flex-row md:items-center justify-between">
             <div className="flex items-center gap-10">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                <div className="h-40 w-40 overflow-hidden rounded-[3.5rem] bg-white relative shadow-2xl border-4 border-white group-hover:ring-primary/40 transition-all">
+                <div className="h-40 w-40 overflow-hidden rounded-full bg-white relative shadow-2xl border-4 border-white group-hover:ring-primary/40 transition-all">
                   {profile.photoUrl ? (
                     <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover transition-transform group-hover:scale-105" />
                   ) : (
@@ -277,7 +282,7 @@ export default function DashboardPage() {
                     ) : aiSuggestions?.suggestions.length ? (
                       aiSuggestions.suggestions.map((suggestion) => (
                         <div key={suggestion.profileId} className="group flex flex-col gap-8 rounded-[3rem] bg-white/10 p-10 backdrop-blur-3xl md:flex-row md:items-center hover:bg-white/15 transition-all border border-white/10 shadow-2xl">
-                          <UserAvatar userId={suggestion.profileId} className="h-24 w-24 shrink-0 rounded-[2.25rem] bg-white/20 shadow-2xl border-2 border-white/20" />
+                          <UserAvatar userId={suggestion.profileId} className="h-24 w-24 shrink-0 rounded-full bg-white/20 shadow-2xl border-2 border-white/20" />
                           <div className="flex-1 space-y-3">
                              <p className="text-lg font-medium leading-relaxed opacity-95 font-body">"{suggestion.reason}"</p>
                           </div>

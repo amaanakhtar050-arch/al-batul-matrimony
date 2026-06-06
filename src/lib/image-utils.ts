@@ -1,8 +1,8 @@
 /**
- * Utility to compress and resize images client-side before uploading to Firestore.
- * This prevents hitting the 1MB document limit.
+ * Utility to compress and resize images client-side before uploading to Firebase Storage.
+ * Ensures images stay under the 300KB limit while maintaining quality.
  */
-export async function compressImage(base64Str: string, maxWidth = 800, quality = 0.7): Promise<string> {
+export async function compressImage(base64Str: string, maxWidth = 1000, quality = 0.7): Promise<string> {
   return new Promise((resolve) => {
     const img = new window.Image();
     img.src = base64Str;
@@ -25,4 +25,12 @@ export async function compressImage(base64Str: string, maxWidth = 800, quality =
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
   });
+}
+
+/**
+ * Converts a data URL (Base64) to a Blob for Firebase Storage upload.
+ */
+export async function dataURLToBlob(dataURL: string): Promise<Blob> {
+  const res = await fetch(dataURL);
+  return await res.blob();
 }

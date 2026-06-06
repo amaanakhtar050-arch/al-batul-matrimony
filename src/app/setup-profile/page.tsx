@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useFirestore, useUser, useStorage } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -19,11 +20,12 @@ import { Camera, Save, ArrowLeft, Plus, ShieldCheck, Upload, Star, ArrowUp, Arro
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { compressImage } from '@/lib/image-utils';
+import { compressImage, dataURLToBlob } from '@/lib/image-utils';
 
 export default function SetupProfilePage() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
+  const storage = useStorage();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -63,6 +65,8 @@ export default function SetupProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [existingProfileData, setExistingProfileData] = useState<any>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingID, setIsUploadingID] = useState(false);
+  const [isUploadingSelfie, setIsUploadingSelfie] = useState(false);
 
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
@@ -133,7 +137,7 @@ export default function SetupProfilePage() {
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !db || !user) return;
+    if (!file || !storage || !user) return;
 
     if (formData.photos.length >= planLimit) {
       toast({
@@ -147,27 +151,52 @@ export default function SetupProfilePage() {
     setIsUploadingPhoto(true);
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const rawBase64 = reader.result as string;
-      const compressed = await compressImage(rawBase64);
-      
-      const newPhotos = [...formData.photos, compressed];
-      const newPrimary = formData.photoUrl || compressed;
-      
-      setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
-      setIsUploadingPhoto(false);
+      try {
+        const rawBase64 = reader.result as string;
+        const compressed = await compressImage(rawBase64);
+        const blob = await dataURLToBlob(compressed);
+        
+        const fileRef = ref(storage, `users/${user.uid}/photos/${Date.now()}.jpg`);
+        await uploadBytes(fileRef, blob);
+        const downloadURL = await getDownloadURL(fileRef);
+        
+        const newPhotos = [...formData.photos, downloadURL];
+        const newPrimary = formData.photoUrl || downloadURL;
+        
+        setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
+      } catch (err: any) {
+        toast({ variant: "destructive", title: "Upload Failed", description: err.message });
+      } finally {
+        setIsUploadingPhoto(false);
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
+  const handleVerificationUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !storage || !user) return;
 
+    field === 'idPhotoUrl' ? setIsUploadingID(true) : setIsUploadingSelfie(true);
+    
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const rawBase64 = reader.result as string;
-      const compressed = await compressImage(rawBase64, 1000, 0.6); // Slightly lower quality for verification docs
-      setFormData(prev => ({ ...prev, [field]: compressed }));
+      try {
+        const rawBase64 = reader.result as string;
+        const compressed = await compressImage(rawBase64, 1000, 0.6);
+        const blob = await dataURLToBlob(compressed);
+        
+        const fileName = field === 'idPhotoUrl' ? 'id_proof.jpg' : 'selfie.jpg';
+        const fileRef = ref(storage, `users/${user.uid}/verification/${fileName}`);
+        await uploadBytes(fileRef, blob);
+        const downloadURL = await getDownloadURL(fileRef);
+        
+        setFormData(prev => ({ ...prev, [field]: downloadURL }));
+      } catch (err: any) {
+        toast({ variant: "destructive", title: "Verification Upload Failed", description: err.message });
+      } finally {
+        field === 'idPhotoUrl' ? setIsUploadingID(false) : setIsUploadingSelfie(false);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -310,9 +339,10 @@ export default function SetupProfilePage() {
                           type="button" 
                           onClick={() => galleryInputRef.current?.click()}
                           className="aspect-[3/4] rounded-xl border-2 border-dashed border-muted hover:border-primary/50 flex flex-col items-center justify-center text-muted-foreground/40 hover:text-primary/40"
+                          disabled={isUploadingPhoto}
                         >
                           {isUploadingPhoto ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
-                          <span className="text-[10px] font-bold mt-1 uppercase">Add Photo</span>
+                          <span className="text-[10px] font-bold mt-1 uppercase">{isUploadingPhoto ? "Uploading..." : "Add Photo"}</span>
                         </button>
                       )}
                     </div>
@@ -330,16 +360,16 @@ export default function SetupProfilePage() {
                     <div className="space-y-2">
                       <Label className="text-xs font-bold uppercase text-muted-foreground">ID Proof</Label>
                       <div className="relative aspect-video rounded-xl bg-white border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => idInputRef.current?.click()}>
-                        {formData.idPhotoUrl ? <Image src={formData.idPhotoUrl} alt="ID" fill className="object-cover" /> : <Upload className="h-6 w-6 text-primary/40" />}
+                        {isUploadingID ? <Loader2 className="h-6 w-6 animate-spin" /> : formData.idPhotoUrl ? <Image src={formData.idPhotoUrl} alt="ID" fill className="object-cover" /> : <Upload className="h-6 w-6 text-primary/40" />}
                       </div>
-                      <input type="file" ref={idInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'idPhotoUrl')} />
+                      <input type="file" ref={idInputRef} className="hidden" accept="image/*" onChange={(e) => handleVerificationUpload(e, 'idPhotoUrl')} />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-bold uppercase text-muted-foreground">Selfie</Label>
                       <div className="relative aspect-square rounded-xl bg-white border-2 border-dashed border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => selfieInputRef.current?.click()}>
-                        {formData.selfiePhotoUrl ? <Image src={formData.selfiePhotoUrl} alt="Selfie" fill className="object-cover" /> : <Camera className="h-6 w-6 text-primary/40" />}
+                        {isUploadingSelfie ? <Loader2 className="h-6 w-6 animate-spin" /> : formData.selfiePhotoUrl ? <Image src={formData.selfiePhotoUrl} alt="Selfie" fill className="object-cover" /> : <Camera className="h-6 w-6 text-primary/40" />}
                       </div>
-                      <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'selfiePhotoUrl')} />
+                      <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" onChange={(e) => handleVerificationUpload(e, 'selfiePhotoUrl')} />
                     </div>
                   </CardContent>
                 </Card>
@@ -409,7 +439,7 @@ export default function SetupProfilePage() {
                     />
                   </CardContent>
                   <CardFooter className="flex justify-end pt-4">
-                    <Button type="submit" size="lg" className="gap-2 font-bold px-12 h-14 shadow-lg" disabled={saving}>
+                    <Button type="submit" size="lg" className="gap-2 font-bold px-12 h-14 shadow-lg" disabled={saving || isUploadingPhoto || isUploadingID || isUploadingSelfie}>
                       <Save className="h-4 w-4" />
                       {saving ? 'Saving...' : 'Save Profile'}
                     </Button>
