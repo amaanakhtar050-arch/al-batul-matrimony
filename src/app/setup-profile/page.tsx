@@ -15,9 +15,10 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X, Loader2 } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Plus, Heart, ShieldCheck, Upload, User, X, Loader2, Star, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function SetupProfilePage() {
   const { user, loading: authLoading } = useUser();
@@ -44,8 +45,8 @@ export default function SetupProfilePage() {
     state: '',
     country: '',
     languagesSpoken: '',
-    photoUrl: '',
-    photos: [] as string[],
+    photoUrl: '', // Primary Photo
+    photos: [] as string[], // Gallery
     idPhotoUrl: '',
     selfiePhotoUrl: '',
     about: '',
@@ -62,9 +63,11 @@ export default function SetupProfilePage() {
   const [existingProfileData, setExistingProfileData] = useState<any>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
+
+  const planLimit = existingProfileData?.membership?.plan === 'Premium' ? 6 : 2;
 
   useEffect(() => {
     if (authLoading) return;
@@ -124,9 +127,18 @@ export default function SetupProfilePage() {
     checkExistingProfile();
   }, [user, authLoading, db, router]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'photoUrl' | 'idPhotoUrl' | 'selfiePhotoUrl') => {
+  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !db || !user) return;
+
+    if (formData.photos.length >= planLimit) {
+      toast({
+        variant: "destructive",
+        title: "Photo Limit Reached",
+        description: `Your ${existingProfileData?.membership?.plan || 'Free'} plan allows up to ${planLimit} photos. Upgrade to Premium for 6 slots.`,
+      });
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       toast({
@@ -137,26 +149,59 @@ export default function SetupProfilePage() {
       return;
     }
 
+    setIsUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const newPhotos = [...formData.photos, base64String];
+      // If it's the first photo, set it as primary too
+      const newPrimary = formData.photoUrl || base64String;
+      
+      setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
+      setIsUploadingPhoto(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'idPhotoUrl' | 'selfiePhotoUrl') => {
+    const file = e.target.files?.[0];
+    if (!file || !db || !user) return;
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
       setFormData(prev => ({ ...prev, [field]: base64String }));
-
-      // If it's the profile photo, we can offer an instant update to the background
-      if (field === 'photoUrl' && isEditing) {
-        setIsUploadingPhoto(true);
-        const userRef = doc(db, 'users', user.uid);
-        updateDoc(userRef, {
-          photoUrl: base64String,
-          updatedAt: serverTimestamp()
-        })
-        .then(() => {
-          toast({ title: "Photo Updated", description: "Your profile picture has been updated." });
-        })
-        .finally(() => setIsUploadingPhoto(false));
-      }
     };
     reader.readAsDataURL(file);
+  };
+
+  const setAsPrimary = (photo: string) => {
+    setFormData(prev => ({ ...prev, photoUrl: photo }));
+    toast({ title: "Primary Photo Updated", description: "This photo will be displayed in search results." });
+  };
+
+  const deletePhoto = (index: number) => {
+    const photoToDelete = formData.photos[index];
+    const newPhotos = formData.photos.filter((_, i) => i !== index);
+    let newPrimary = formData.photoUrl;
+    
+    if (photoToDelete === formData.photoUrl) {
+      newPrimary = newPhotos.length > 0 ? newPhotos[0] : '';
+    }
+    
+    setFormData(prev => ({ ...prev, photos: newPhotos, photoUrl: newPrimary }));
+  };
+
+  const movePhoto = (index: number, direction: 'up' | 'down') => {
+    const newPhotos = [...formData.photos];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newPhotos.length) return;
+    
+    const temp = newPhotos[index];
+    newPhotos[index] = newPhotos[targetIndex];
+    newPhotos[targetIndex] = temp;
+    
+    setFormData(prev => ({ ...prev, photos: newPhotos }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -167,7 +212,6 @@ export default function SetupProfilePage() {
     const userDocRef = doc(db, 'users', user.uid);
     const languagesArray = formData.languagesSpoken.split(',').map(l => l.trim()).filter(l => l.length > 0);
     
-    // Maintain approved status if editing and already approved
     const currentStatus = existingProfileData?.status || 'pending';
     const nextStatus = (currentStatus === 'approved') ? 'approved' : 'pending';
 
@@ -221,17 +265,16 @@ export default function SetupProfilePage() {
       .then(() => {
         toast({
           title: isEditing ? "Profile Updated" : "Profile Submitted",
-          description: nextStatus === 'approved' ? "Your changes have been saved." : "Your details and identity documents are now pending administrative review.",
+          description: "Your changes have been saved successfully.",
         });
         router.push('/dashboard');
       })
       .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: userDocRef.path,
           operation: 'write',
           requestResourceData: finalData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
       })
       .finally(() => setSaving(false));
   };
@@ -254,60 +297,52 @@ export default function SetupProfilePage() {
               </Link>
             )}
             <h1 className="text-4xl font-bold font-headline mb-2 text-primary">{isEditing ? "Update Profile" : "Create Your Profile"}</h1>
-            <p className="text-lg text-muted-foreground">Submit your details and identity documents for mandatory verification.</p>
+            <p className="text-lg text-muted-foreground">Manage your photos and mandatory verification details.</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid gap-8 lg:grid-cols-3">
               <aside className="lg:col-span-1 space-y-6">
                 <Card className="border-none shadow-md overflow-hidden">
-                  <CardHeader className="pb-4 text-center">
-                    <CardTitle className="text-lg font-bold text-primary">Profile Photo</CardTitle>
-                    <CardDescription>Upload a clear photo of yourself.</CardDescription>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-bold text-primary flex items-center justify-between">
+                      Profile Gallery
+                      <Badge variant="outline" className="text-[10px]">{formData.photos.length}/{planLimit}</Badge>
+                    </CardTitle>
+                    <CardDescription>Upload up to {planLimit} photos. Mark one as primary.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6 flex flex-col items-center">
-                    <div className="group relative h-48 w-48 overflow-hidden rounded-3xl bg-muted shadow-inner border-2 border-primary/10">
-                      {formData.photoUrl ? (
-                        <>
-                          <Image src={formData.photoUrl} alt="Profile Preview" fill className="object-cover" />
-                          {isUploadingPhoto && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <Loader2 className="h-8 w-8 text-white animate-spin" />
-                            </div>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {formData.photos.map((photo, idx) => (
+                        <div key={idx} className={cn("group relative aspect-[3/4] overflow-hidden rounded-xl border-2 transition-all", formData.photoUrl === photo ? "border-primary shadow-md" : "border-muted")}>
+                          <Image src={photo} alt={`Gallery ${idx}`} fill className="object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                             <div className="flex gap-1">
+                               <Button type="button" size="icon" variant="secondary" className="h-7 w-7 rounded-full" onClick={() => movePhoto(idx, 'up')} disabled={idx === 0}><ArrowUp className="h-3 w-3" /></Button>
+                               <Button type="button" size="icon" variant="secondary" className="h-7 w-7 rounded-full" onClick={() => movePhoto(idx, 'down')} disabled={idx === formData.photos.length - 1}><ArrowDown className="h-3 w-3" /></Button>
+                             </div>
+                             <div className="flex gap-1">
+                               <Button type="button" size="icon" variant={formData.photoUrl === photo ? "default" : "secondary"} className="h-7 w-7 rounded-full" onClick={() => setAsPrimary(photo)}><Star className={cn("h-3 w-3", formData.photoUrl === photo && "fill-current")} /></Button>
+                               <Button type="button" size="icon" variant="destructive" className="h-7 w-7 rounded-full" onClick={() => deletePhoto(idx)}><Trash2 className="h-3 w-3" /></Button>
+                             </div>
+                          </div>
+                          {formData.photoUrl === photo && (
+                            <div className="absolute top-2 left-2 bg-primary text-white p-1 rounded-full shadow-sm"><Star className="h-3 w-3 fill-current" /></div>
                           )}
-                          <button 
-                            type="button"
-                            onClick={() => setFormData({...formData, photoUrl: ''})}
-                            className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground/30">
-                          <User className="h-16 w-16 mb-2" />
-                          <span className="text-[10px] text-center font-bold uppercase tracking-wider">No Photo Uploaded</span>
                         </div>
+                      ))}
+                      {formData.photos.length < planLimit && (
+                        <button 
+                          type="button" 
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="aspect-[3/4] rounded-xl border-2 border-dashed border-muted hover:border-primary/50 transition-colors flex flex-col items-center justify-center text-muted-foreground/40 hover:text-primary/40"
+                        >
+                          {isUploadingPhoto ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-6 w-6" />}
+                          <span className="text-[10px] font-bold mt-1 uppercase">Add Photo</span>
+                        </button>
                       )}
                     </div>
-                    
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full h-11 font-bold gap-2"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingPhoto}
-                    >
-                      <Upload className="h-4 w-4" />
-                      {formData.photoUrl ? "Change Photo" : "Upload Photo"}
-                    </Button>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={(e) => handleFileChange(e, 'photoUrl')} 
-                    />
+                    <input type="file" ref={galleryInputRef} className="hidden" accept="image/*" onChange={handleGalleryUpload} />
                   </CardContent>
                 </Card>
 
@@ -347,26 +382,6 @@ export default function SetupProfilePage() {
                         )}
                       </div>
                       <input type="file" ref={selfieInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'selfiePhotoUrl')} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-md bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
-                      <Heart className="h-5 w-5" /> Preferences
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Min Age</Label>
-                        <Input type="number" value={formData.minAgePref} onChange={(e) => setFormData({...formData, minAgePref: e.target.value})} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Max Age</Label>
-                        <Input type="number" value={formData.maxAgePref} onChange={(e) => setFormData({...formData, maxAgePref: e.target.value})} />
-                      </div>
                     </div>
                   </CardContent>
                 </Card>

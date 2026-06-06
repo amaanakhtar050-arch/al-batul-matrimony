@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -16,8 +17,17 @@ import {
   CheckCircle2,
   Clock,
   Trash2,
-  Edit2
+  Edit2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +74,6 @@ export default function ProfileDetailPage() {
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
-  // Check if I sent an interest
   const sentInterestQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
     return query(
@@ -75,7 +84,6 @@ export default function ProfileDetailPage() {
     );
   }, [db, currentUser, id]);
 
-  // Check if I received an interest
   const receivedInterestQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
     return query(
@@ -92,18 +100,16 @@ export default function ProfileDetailPage() {
   const existingSentInterest = sentInterests?.[0];
   const existingReceivedInterest = receivedInterests?.[0];
 
-  // Logic for "Profile viewed" notification
   useEffect(() => {
     if (db && currentUser && profile && id && currentUser.uid !== id && viewerProfile) {
       const viewerName = viewerProfile.fullName || "A member";
       const viewedRef = collection(db, 'users', id as string, 'notifications');
       
-      // Simple debounce to prevent notification spam on every refresh
       const lastViewedKey = `viewed_${id}`;
       const lastViewed = localStorage.getItem(lastViewedKey);
       const now = Date.now();
       
-      if (!lastViewed || now - parseInt(lastViewed) > 3600000) { // Notify once an hour
+      if (!lastViewed || now - parseInt(lastViewed) > 3600000) {
         addDoc(viewedRef, {
           type: 'profile_viewed',
           title: '👀 Profile Viewed',
@@ -121,19 +127,11 @@ export default function ProfileDetailPage() {
   const handleSendInterest = async () => {
     if (!currentUser || !db || !profile || !viewerProfile) return;
     
-    if (currentUser.uid === profile.id) {
-      toast({ title: "Not Possible", description: "You cannot send an interest to yourself.", variant: "destructive" });
-      return;
-    }
+    if (currentUser.uid === profile.id) return;
 
     const isAdmin = viewerProfile?.role === 'admin';
     if (!isAdmin && viewerProfile?.status !== 'approved') {
       toast({ title: "Verification Required", description: "Your profile must be approved to send interests.", variant: "destructive" });
-      return;
-    }
-
-    if (existingSentInterest || existingReceivedInterest) {
-      toast({ title: "Interaction Exists", description: "You already have an active interaction with this member." });
       return;
     }
 
@@ -154,7 +152,6 @@ export default function ProfileDetailPage() {
       .then(() => {
         toast({ title: "Interest Sent", description: "We've notified the member of your interest." });
         
-        // Notify recipient
         const notifyRef = collection(db, 'users', profile.id, 'notifications');
         addDoc(notifyRef, {
           type: 'interest_received',
@@ -212,6 +209,8 @@ export default function ProfileDetailPage() {
   const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
   const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
+  const displayPhotos = profile.photos?.length > 0 ? profile.photos : (profile.photoUrl ? [profile.photoUrl] : []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -221,15 +220,36 @@ export default function ProfileDetailPage() {
           <div className="lg:col-span-2">
             <div className="sticky top-24 space-y-6">
               <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted border border-border">
-                {profile.photoUrl ? (
-                  <Image src={profile.photoUrl} alt="Profile" fill className="object-cover" />
+                {displayPhotos.length > 0 ? (
+                  <Carousel className="w-full h-full">
+                    <CarouselContent>
+                      {displayPhotos.map((photo: string, idx: number) => (
+                        <CarouselItem key={idx}>
+                          <div className="relative aspect-[3/4] w-full">
+                            <Image src={photo} alt={`Profile Photo ${idx + 1}`} fill className="object-cover" priority={idx === 0} />
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    {displayPhotos.length > 1 && (
+                      <>
+                        <CarouselPrevious className="left-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
+                        <CarouselNext className="right-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1 z-10">
+                          {displayPhotos.map((_: any, i: number) => (
+                             <div key={i} className={cn("h-1 w-6 rounded-full", i === 0 ? "bg-white" : "bg-white/30")} />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </Carousel>
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-muted-foreground/20">
                     <User className="h-32 w-32" />
                   </div>
                 )}
                 {profile.status === 'approved' && (
-                   <div className="absolute left-6 top-6 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-primary shadow-lg backdrop-blur-md">
+                   <div className="absolute left-6 top-6 z-20 flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-primary shadow-lg backdrop-blur-md">
                       <ShieldCheck className="h-5 w-5" />
                       <span className="text-sm font-bold">Verified Member</span>
                    </div>
@@ -288,19 +308,6 @@ export default function ProfileDetailPage() {
                         </Link>
                       )}
                     </div>
-                    {isMatched && !canChat && !isAdmin && (
-                        <div className="flex items-start gap-2 p-3 bg-orange-50 rounded-xl text-orange-800 text-[10px] leading-relaxed">
-                          <Crown className="h-3 w-3 shrink-0 mt-0.5" />
-                          <p>You've matched! To start the conversation, please upgrade to a <strong>Silver Plan</strong> or higher.</p>
-                        </div>
-                    )}
-                    {(isMatched || isAdmin) && canChat && (
-                      <Link href="/messages" className="w-full">
-                        <Button className="w-full h-11 gap-2 font-bold shadow-md" variant="secondary">
-                           <MessageSquare className="h-4 w-4" /> Start Conversation Now
-                        </Button>
-                      </Link>
-                    )}
                   </div>
                 )}
               </div>
