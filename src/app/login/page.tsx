@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn, KeyRound, Loader2 } from 'lucide-react';
+import { Logo } from '@/components/brand/Logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -104,18 +105,19 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto flex items-center justify-center px-4 py-20">
-        <Card className="w-full max-w-md border-none shadow-xl">
-          <CardHeader className="space-y-1 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <LogIn className="h-6 w-6" />
+        <Card className="w-full max-w-md border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+          <div className="h-2 bg-primary w-full" />
+          <CardHeader className="space-y-1 text-center pt-10">
+            <div className="mx-auto mb-6">
+              <Logo variant="app-icon" size={64} className="shadow-xl" />
             </div>
-            <CardTitle className="text-3xl font-headline font-bold">Welcome Back</CardTitle>
-            <CardDescription>Enter your credentials to access your matrimonial profile</CardDescription>
+            <CardTitle className="text-3xl font-headline font-bold text-primary">Welcome Back</CardTitle>
+            <CardDescription className="text-sm font-medium">Enter your credentials to access your matrimonial profile</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5 px-8">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest opacity-70">Email Address</Label>
                 <Input 
                   id="email" 
                   type="email" 
@@ -123,18 +125,18 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
-                  className="h-11"
+                  className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"
                   disabled={loading}
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest opacity-70">Password</Label>
                   <button 
                     type="button"
                     onClick={handleForgotPassword}
                     disabled={resetLoading || loading}
-                    className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 uppercase tracking-tighter"
                   >
                     <KeyRound className="h-3 w-3" />
                     {resetLoading ? 'Sending...' : 'Forgot Password?'}
@@ -146,26 +148,26 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
-                  className="h-11"
+                  className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"
                   disabled={loading}
                 />
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+            <CardFooter className="flex flex-col gap-6 px-8 pb-10 pt-6">
+              <Button type="submit" className="w-full h-14 text-lg font-bold shadow-xl rounded-2xl transition-transform active:scale-95" disabled={loading}>
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Signing in...
                   </>
                 ) : 'Sign In'}
               </Button>
               <div className="relative w-full text-center">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-muted"></span></div>
-                <span className="relative bg-background px-2 text-xs text-muted-foreground uppercase">New to Al Batul?</span>
+                <span className="relative bg-white px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">New to Al Batul?</span>
               </div>
               <Link href="/register" className="w-full">
-                <Button variant="outline" type="button" className="w-full h-11" disabled={loading}>
+                <Button variant="outline" type="button" className="w-full h-12 rounded-xl border-2 font-bold" disabled={loading}>
                   Create a New Account
                 </Button>
               </Link>

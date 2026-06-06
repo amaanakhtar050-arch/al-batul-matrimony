@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from "next/link";
@@ -15,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
+import { Logo } from "@/components/brand/Logo";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
@@ -143,8 +143,8 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="font-headline text-2xl font-bold text-primary tracking-tight">Al Batul</span>
+        <Link href="/">
+          <Logo variant="full" size={36} />
         </Link>
 
         <div className="hidden items-center gap-6 md:flex">

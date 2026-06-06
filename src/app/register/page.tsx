@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -16,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Mail, ShieldCheck, Loader2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Logo } from '@/components/brand/Logo';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -101,29 +101,30 @@ export default function RegisterPage() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto flex items-center justify-center px-4 py-20">
-          <Card className="w-full max-w-md text-center border-none shadow-xl">
-            <CardHeader>
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Mail className="h-10 w-10 animate-bounce" />
+          <Card className="w-full max-w-md text-center border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+            <div className="h-2 bg-primary w-full" />
+            <CardHeader className="pt-12">
+              <div className="mx-auto mb-8">
+                <Logo variant="app-icon" size={80} className="shadow-2xl animate-pulse" />
               </div>
-              <CardTitle className="text-3xl font-headline font-bold">Check Your Inbox</CardTitle>
-              <CardDescription className="text-base">
-                We've sent a verification link to <br /><strong className="text-foreground">{email}</strong>. <br />
+              <CardTitle className="text-3xl font-headline font-bold text-primary">Check Your Inbox</CardTitle>
+              <CardDescription className="text-base font-medium mt-4">
+                We've sent a verification link to <br /><strong className="text-foreground">{email}</strong>. <br /><br />
                 Please verify your email address to continue setting up your profile.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 py-6">
-              <div className="flex items-center gap-2 rounded-lg bg-muted p-4 text-sm text-left">
-                <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
-                <p>Email verification helps us maintain a secure and trustworthy community for all members.</p>
+            <CardContent className="space-y-4 py-8 px-10">
+              <div className="flex items-center gap-4 rounded-2xl bg-primary/5 p-6 text-sm text-left border border-primary/10">
+                <ShieldCheck className="h-6 w-6 text-primary shrink-0" />
+                <p className="font-medium text-primary/80">Email verification helps us maintain a secure and trustworthy community for all members.</p>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button onClick={() => router.push('/login')} className="w-full h-11 text-lg font-semibold">
+            <CardFooter className="flex flex-col gap-6 px-10 pb-12">
+              <Button onClick={() => router.push('/login')} className="w-full h-14 text-lg font-bold shadow-xl rounded-2xl transition-transform active:scale-95">
                 Go to Login Page
               </Button>
-              <p className="text-sm text-muted-foreground">
-                Didn't receive the email? Check your spam folder or try again later.
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+                Didn't receive the email? Check your spam folder.
               </p>
             </CardFooter>
           </Card>
@@ -136,18 +137,19 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto flex items-center justify-center px-4 py-20">
-        <Card className="w-full max-w-md border-none shadow-xl">
-          <CardHeader className="space-y-1 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <UserPlus className="h-6 w-6" />
+        <Card className="w-full max-w-md border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+          <div className="h-2 bg-primary w-full" />
+          <CardHeader className="space-y-1 text-center pt-10 px-8">
+            <div className="mx-auto mb-6">
+              <Logo variant="app-icon" size={64} className="shadow-xl" />
             </div>
-            <CardTitle className="text-3xl font-headline font-bold">Join Al Batul</CardTitle>
-            <CardDescription>Start your journey towards finding a compatible life partner</CardDescription>
+            <CardTitle className="text-3xl font-headline font-bold text-primary">Join Al Batul</CardTitle>
+            <CardDescription className="text-sm font-medium">Start your journey towards finding a compatible life partner</CardDescription>
           </CardHeader>
           <form onSubmit={handleRegister}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5 px-10">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest opacity-70">Email Address</Label>
                 <Input 
                   id="email" 
                   type="email" 
@@ -155,25 +157,25 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
-                  className="h-11"
+                  className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"
                   disabled={loading}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" title="Minimum 6 characters" className="text-xs font-bold uppercase tracking-widest opacity-70">Password</Label>
                 <Input 
                   id="password" 
                   type="password" 
-                  placeholder="Minimum 6 characters"
+                  placeholder="Create a strong password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
-                  className="h-11"
+                  className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"
                   disabled={loading}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Label htmlFor="confirm-password" className="text-xs font-bold uppercase tracking-widest opacity-70">Confirm Password</Label>
                 <Input 
                   id="confirm-password" 
                   type="password" 
@@ -181,26 +183,29 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required 
-                  className="h-11"
+                  className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"
                   disabled={loading}
                 />
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-12 text-lg font-semibold" disabled={loading}>
+            <CardFooter className="flex flex-col gap-6 px-10 pb-12 pt-8">
+              <Button type="submit" className="w-full h-14 text-lg font-bold shadow-xl rounded-2xl transition-transform active:scale-95" disabled={loading}>
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Creating account...
                   </>
                 ) : 'Create Account'}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/login" className="text-primary font-semibold hover:underline">
-                  Log in here
-                </Link>
-              </p>
+              <div className="relative w-full text-center">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-muted"></span></div>
+                <span className="relative bg-white px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Already have an account?</span>
+              </div>
+              <Link href="/login" className="w-full">
+                <Button variant="outline" type="button" className="w-full h-12 rounded-xl border-2 font-bold" disabled={loading}>
+                  Sign in here
+                </Button>
+              </Link>
             </CardFooter>
           </form>
         </Card>

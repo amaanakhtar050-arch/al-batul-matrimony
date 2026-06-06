@@ -1,10 +1,10 @@
-
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Search, ShieldCheck, Heart, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { Logo } from "@/components/brand/Logo";
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find(img => img.id === 'hero-bg');
@@ -28,21 +28,24 @@ export default function Home() {
         </div>
         
         <div className="container relative z-10 mx-auto text-center">
-          <h1 className="mb-6 text-5xl font-bold leading-tight md:text-7xl">
+          <div className="flex justify-center mb-8">
+            <Logo variant="icon" size={120} className="shadow-2xl rounded-[2.5rem]" />
+          </div>
+          <h1 className="mb-6 text-5xl font-bold leading-tight md:text-7xl font-headline">
             Find Your Half with <br />
             <span className="text-primary italic">Grace & Tradition</span>
           </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
+          <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl font-medium">
             Al Batul Matrimony offers a serene, trusted, and respectful environment for the Muslim community to find compatible life partners through shared values and modern technology.
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/discover">
-              <Button size="lg" className="h-14 px-8 text-lg font-semibold">
+              <Button size="lg" className="h-14 px-10 text-lg font-bold shadow-xl rounded-2xl">
                 Start Searching
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-semibold">
-              Learn Our Values
+            <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-bold bg-white/50 backdrop-blur-sm rounded-2xl border-2">
+              Our Values
             </Button>
           </div>
         </div>
@@ -52,58 +55,62 @@ export default function Home() {
       <section className="bg-white py-24">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-4xl font-bold">A Safe Harbor for Marriage</h2>
-            <p className="text-muted-foreground">Everything you need for a successful and respectful search.</p>
+            <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/20 text-primary uppercase font-bold tracking-widest">Why Choose Us</Badge>
+            <h2 className="text-4xl font-bold font-headline text-primary">A Safe Harbor for Marriage</h2>
+            <p className="text-muted-foreground mt-2 max-w-md mx-auto">Everything you need for a successful, sincere, and respectful search for your life partner.</p>
           </div>
           
           <div className="grid gap-12 md:grid-cols-3">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-primary">
+            <div className="flex flex-col items-center text-center p-8 rounded-[2.5rem] bg-background/30 border border-border/50 hover:shadow-2xl transition-all group">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-lg transition-transform group-hover:scale-110">
                 <ShieldCheck className="h-8 w-8" />
               </div>
-              <h3 className="mb-3 text-2xl font-bold">Verified Profiles</h3>
-              <p className="text-muted-foreground">Every profile undergoes a manual verification process to ensure trust and authenticity within our community.</p>
+              <h3 className="mb-3 text-2xl font-bold font-headline">Verified Profiles</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Every profile undergoes a manual verification process to ensure trust and authenticity within our community.</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-primary">
+            <div className="flex flex-col items-center text-center p-8 rounded-[2.5rem] bg-background/30 border border-border/50 hover:shadow-2xl transition-all group">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary text-primary-foreground shadow-lg transition-transform group-hover:scale-110">
                 <Search className="h-8 w-8" />
               </div>
-              <h3 className="mb-3 text-2xl font-bold">Advanced Matching</h3>
-              <p className="text-muted-foreground">Filter by sect, education, lifestyle, and city with our intelligent matchmaker tool powered by GenAI.</p>
+              <h3 className="mb-3 text-2xl font-bold font-headline">Advanced Matching</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Filter by sect, education, lifestyle, and city with our intelligent matchmaker tool powered by AI.</p>
             </div>
             
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-primary">
+            <div className="flex flex-col items-center text-center p-8 rounded-[2.5rem] bg-background/30 border border-border/50 hover:shadow-2xl transition-all group">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-lg transition-transform group-hover:scale-110">
                 <Users className="h-8 w-8" />
               </div>
-              <h3 className="mb-3 text-2xl font-bold">Private & Respectful</h3>
-              <p className="text-muted-foreground">Our interest exchange protocol ensures mutual respect, allowing conversations only after both parties agree.</p>
+              <h3 className="mb-3 text-2xl font-bold font-headline">Private & Respectful</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Our interest exchange protocol ensures mutual respect, allowing conversations only after both parties agree.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Social Proof / Numbers */}
+      {/* Stats Section */}
       <section className="bg-background py-20">
         <div className="container mx-auto px-4 lg:px-8">
-          <div className="rounded-3xl bg-primary p-12 text-white md:p-16">
-            <div className="grid gap-8 text-center md:grid-cols-4">
-              <div>
-                <p className="text-4xl font-bold">10k+</p>
-                <p className="text-primary-foreground/80">Active Members</p>
+          <div className="rounded-[3rem] bg-primary p-12 text-white md:p-16 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            
+            <div className="grid gap-8 text-center md:grid-cols-4 relative z-10">
+              <div className="space-y-1">
+                <p className="text-4xl font-bold font-headline">10k+</p>
+                <p className="text-primary-foreground/80 text-sm font-bold uppercase tracking-widest">Active Members</p>
               </div>
-              <div>
-                <p className="text-4xl font-bold">2.5k+</p>
-                <p className="text-primary-foreground/80">Successful Matches</p>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold font-headline">2.5k+</p>
+                <p className="text-primary-foreground/80 text-sm font-bold uppercase tracking-widest">Successful Matches</p>
               </div>
-              <div>
-                <p className="text-4xl font-bold">100%</p>
-                <p className="text-primary-foreground/80">Private Chat</p>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold font-headline">100%</p>
+                <p className="text-primary-foreground/80 text-sm font-bold uppercase tracking-widest">Private & Secure</p>
               </div>
-              <div>
-                <p className="text-4xl font-bold">24/7</p>
-                <p className="text-primary-foreground/80">Admin Support</p>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold font-headline">24/7</p>
+                <p className="text-primary-foreground/80 text-sm font-bold uppercase tracking-widest">Admin Support</p>
               </div>
             </div>
           </div>
@@ -111,15 +118,23 @@ export default function Home() {
       </section>
 
       {/* CTA Footer */}
-      <footer className="bg-white py-16 text-center">
+      <footer className="bg-white py-24 text-center">
         <div className="container mx-auto px-4 lg:px-8">
-          <Heart className="mx-auto mb-6 h-12 w-12 text-secondary" />
-          <h2 className="mb-8 text-3xl font-bold">Ready to complete your deen?</h2>
-          <Button size="lg" className="h-14 px-12 text-lg font-bold">
-            Create Your Profile Today
-          </Button>
+          <Logo variant="icon" size={80} className="mx-auto mb-8" />
+          <h2 className="mb-8 text-4xl font-bold font-headline text-primary">Ready to complete your deen?</h2>
+          <Link href="/register">
+            <Button size="lg" className="h-16 px-12 text-xl font-bold shadow-2xl rounded-2xl">
+              Create Your Profile Today
+            </Button>
+          </Link>
+          <div className="mt-12 flex justify-center gap-6 opacity-40">
+             <Image src="https://picsum.photos/seed/trust1/120/40" alt="Trust" width={120} height={40} className="grayscale" />
+             <Image src="https://picsum.photos/seed/trust2/120/40" alt="Trust" width={120} height={40} className="grayscale" />
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+
+import { Badge } from "@/components/ui/badge";
