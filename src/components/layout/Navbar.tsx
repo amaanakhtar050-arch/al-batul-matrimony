@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -95,7 +96,7 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/dashboard", label: "My Profile", icon: User, restricted: true },
-    { href: "/setup-profile", label: "Settings", icon: Settings, restricted: true },
+    { href: "/settings", label: "Settings", icon: Settings, restricted: true },
     { href: "/interests", label: "Interests", icon: Heart, restricted: true },
     { href: "/messages", label: "Messages", icon: MessageSquare, restricted: true },
     { href: "/notifications", label: "Notifications", icon: Bell, restricted: true, badge: unreadNotificationsCount },

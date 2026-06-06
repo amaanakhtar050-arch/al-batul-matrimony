@@ -54,7 +54,29 @@
             "maxAge": { "type": "number" },
             "sect": { "type": "string" },
             "education": { "type": "string" },
-            "location": { "type": "string" }
+            "location": { "type": "string" },
+            "maritalStatus": { "type": "string" },
+            "profession": { "type": "string" }
+          }
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "hideProfileFromSearch": { "type": "boolean", "default": false },
+            "hideOnlineStatus": { "type": "boolean", "default": false },
+            "hideLastActive": { "type": "boolean", "default": false },
+            "hidePhotosFromNonPremium": { "type": "boolean", "default": false },
+            "notifications": {
+              "type": "object",
+              "properties": {
+                "messages": { "type": "boolean", "default": true },
+                "interests": { "type": "boolean", "default": true },
+                "interestAccepted": { "type": "boolean", "default": true },
+                "matches": { "type": "boolean", "default": true },
+                "membership": { "type": "boolean", "default": true },
+                "promotional": { "type": "boolean", "default": false }
+              }
+            }
           }
         },
         "lastActiveAt": { "type": "string", "format": "date-time" },
