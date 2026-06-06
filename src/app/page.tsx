@@ -133,7 +133,7 @@ export default function Home() {
           <div className="flex flex-wrap justify-center gap-6 md:gap-8 text-sm font-bold text-muted-foreground/60">
              <Link href="/support" className="hover:text-primary transition-colors">Support</Link>
              <Link href="/support" className="hover:text-primary transition-colors">Safety</Link>
-             <Link href="/support" className="hover:text-primary transition-colors">Privacy</Link>
+             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
           </div>
         </div>
       </footer>

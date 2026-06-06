@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -321,9 +320,11 @@ export default function SettingsPage() {
                 <SettingRow icon={FileText} label="Terms & Conditions">
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </SettingRow>
-                <SettingRow icon={Shield} label="Privacy Policy">
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </SettingRow>
+                <Link href="/privacy">
+                  <SettingRow icon={Shield} label="Privacy Policy" description="Read our commitment to your data.">
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </SettingRow>
+                </Link>
               </div>
             </Card>
           </section>
