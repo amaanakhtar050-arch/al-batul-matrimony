@@ -41,8 +41,12 @@ const CalculateCompatibilityOutputSchema = z.object({
 });
 export type CalculateCompatibilityOutput = z.infer<typeof CalculateCompatibilityOutputSchema>;
 
+/**
+ * Defines the AI prompt for compatibility scoring.
+ */
 const prompt = ai.definePrompt({
   name: 'calculateCompatibilityPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: CalculateCompatibilityInputSchema },
   output: { schema: CalculateCompatibilityOutputSchema },
   system: "You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to provide a precise compatibility score and detailed reasoning between two Muslim individuals based on their profiles and preferences.",
@@ -82,9 +86,13 @@ const calculateCompatibilityFlow = ai.defineFlow(
         throw new Error('No output from compatibility prompt');
       }
       return output;
-    } catch (error) {
-      console.error('Compatibility Flow Error:', error);
-      return { score: 0, reasons: ["AI analysis is currently unavailable."] };
+    } catch (error: any) {
+      console.error('Compatibility AI Error:', error?.message || error);
+      // Return a graceful fallback instead of crashing
+      return { 
+        score: 0, 
+        reasons: ["AI compatibility analysis is temporarily unavailable. Please review profile details manually."] 
+      };
     }
   }
 );

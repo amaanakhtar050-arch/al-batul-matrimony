@@ -47,9 +47,11 @@ export type IntelligentMatchmakerSuggestionsOutput = z.infer<typeof IntelligentM
 
 /**
  * Defines the AI prompt for matchmaking suggestions.
+ * We explicitly specify the model here to ensure consistency.
  */
 const prompt = ai.definePrompt({
   name: 'intelligentMatchmakerPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: IntelligentMatchmakerSuggestionsInputSchema },
   output: { schema: IntelligentMatchmakerSuggestionsOutputSchema },
   system: "You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to suggest highly compatible profiles based on the user's profile and preferences, considering sect, education, lifestyle, city, maritalStatus, and age. Suggest up to 3 matches.",
@@ -88,13 +90,19 @@ const intelligentMatchmakerSuggestionsFlow = ai.defineFlow(
   },
   async (input) => {
     try {
+      // Use the prompt to generate content
       const { output } = await prompt(input);
-      if (!output) {
+      
+      if (!output || !output.suggestions) {
         return { suggestions: [] };
       }
+      
       return output;
-    } catch (error) {
-      console.error('Genkit Error in matchmaking flow:', error);
+    } catch (error: any) {
+      // Log the error for administrative review
+      console.error('Matchmaking AI Error:', error?.message || error);
+      
+      // Return an empty list rather than throwing to avoid crashing the UI
       return { suggestions: [] };
     }
   }
