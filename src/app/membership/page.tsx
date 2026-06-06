@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Check, Upload, Clock, AlertCircle, Copy, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { Check, Upload, Clock, AlertCircle, Copy, CheckCircle2, QrCode } from "lucide-react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import Image from "next/image";
 
 const PLANS = [
   { 
@@ -65,6 +66,19 @@ export default function MembershipPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const activeUpiId = settings?.upiId || "amaanakhtar050-1@oksbi";
+
+  // Generate UPI Payment URL for QR Code
+  const upiUrl = useMemo(() => {
+    if (!selectedPlan) return "";
+    const name = encodeURIComponent("Al Batul Matrimony");
+    const note = encodeURIComponent(`Membership Upgrade - ${selectedPlan.name}`);
+    return `upi://pay?pa=${activeUpiId}&pn=${name}&am=${selectedPlan.price}&cu=INR&tn=${note}`;
+  }, [activeUpiId, selectedPlan]);
+
+  const qrCodeUrl = useMemo(() => {
+    if (!upiUrl) return "";
+    return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(upiUrl)}`;
+  }, [upiUrl]);
 
   const handleSelectPlan = (name: string, price: number) => {
     if (price === 0) {
@@ -172,7 +186,7 @@ export default function MembershipPage() {
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold flex items-center gap-2 text-primary">
                 <AlertCircle className="h-5 w-5" />
-                2. Secure Payment
+                2. Payment Details
               </h3>
               <div className="space-y-4 rounded-xl bg-muted/30 p-5 border border-border">
                 <div className="flex justify-between items-center group">
@@ -194,41 +208,60 @@ export default function MembershipPage() {
 
           <div className="space-y-6">
              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Upload className="h-5 w-5 text-primary" />
-              3. Payment Submission
+              <QrCode className="h-5 w-5 text-primary" />
+              3. Scan & Pay
             </h2>
             <Card className="border-none shadow-xl bg-card overflow-hidden">
               <CardHeader className="bg-primary/5">
-                <CardTitle className="text-lg">Manual Verification</CardTitle>
+                <CardTitle className="text-lg">Insta-QR Payment</CardTitle>
                 <CardDescription>
                   {selectedPlan ? (
                     <div className="mt-1">
-                      Upgrading to: <span className="font-bold text-primary">{selectedPlan.name} (₹{selectedPlan.price})</span>
+                      Pay <span className="font-bold text-primary">₹{selectedPlan.price}</span> for {selectedPlan.name} Plan
                     </div>
-                  ) : "Select a plan to submit payment proof."}
+                  ) : "Select a plan to see payment QR code."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
-                <div className="space-y-2">
+                {selectedPlan ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative h-48 w-48 overflow-hidden rounded-2xl border-4 border-white shadow-2xl bg-white p-2">
+                      <Image 
+                        src={qrCodeUrl} 
+                        alt="Payment QR Code" 
+                        fill 
+                        className="object-contain"
+                        unoptimized // QR code API returns dynamic images
+                      />
+                    </div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center">
+                      Scan with any UPI App <br /> (GPay, PhonePe, Paytm)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="h-48 flex items-center justify-center rounded-2xl bg-muted/20 border-2 border-dashed border-muted/50">
+                    <QrCode className="h-10 w-10 text-muted-foreground/20" />
+                  </div>
+                )}
+                
+                <div className="space-y-2 pt-4">
                   <label className="text-sm font-semibold">Transaction ID / UTR</label>
                   <Input 
-                    placeholder="Enter 12-digit UTR" 
+                    placeholder="Enter 12-digit UTR after payment" 
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
                     className="h-12 font-mono"
                     disabled={!selectedPlan}
                   />
-                </div>
-                
-                <div className="rounded-xl border-2 border-dashed p-6 text-center transition-colors hover:border-primary/50 bg-muted/5">
-                  <Upload className="mx-auto mb-2 h-6 w-6 text-muted-foreground/30" />
-                  <p className="text-xs font-bold text-muted-foreground">Payment Screenshot (Optional)</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                    * UTR is required to verify your payment manually.
+                  </p>
                 </div>
 
                 <div className="flex items-start gap-3 rounded-xl bg-accent/30 p-4 text-primary text-[11px] font-medium">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0" />
                   <p className="leading-relaxed">
-                    Once submitted, our finance team will verify the UTR. Your plan will be updated within 24 hours.
+                    Once submitted, our team will verify the UTR. Your plan will be activated within 24 hours.
                   </p>
                 </div>
               </CardContent>
