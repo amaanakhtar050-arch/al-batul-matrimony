@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -107,7 +118,13 @@ export function Navbar() {
     try {
       await signOut(auth);
       router.push('/');
-    } catch (error: any) {}
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Logout Error",
+        description: "An unexpected error occurred. Please try again."
+      });
+    }
   };
 
   const handleMarkAsRead = (id: string) => {
@@ -255,9 +272,33 @@ export function Navbar() {
                 </Button>
               </Link>
               
-              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-2xl text-destructive hover:bg-destructive/10 transition-all" onClick={handleLogout} title="Log Out">
-                <LogOut className="h-5 w-5" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-2xl text-destructive hover:bg-destructive/10 transition-all" title="Log Out">
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-[2.5rem] p-8 max-w-sm mx-auto">
+                  <AlertDialogHeader className="space-y-4">
+                    <div className="h-16 w-16 bg-destructive/5 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                       <LogOut className="h-8 w-8 text-destructive" />
+                    </div>
+                    <AlertDialogTitle className="text-2xl font-headline text-center">Log Out</AlertDialogTitle>
+                    <AlertDialogDescription className="text-center text-muted-foreground leading-relaxed">
+                      Are you sure you want to log out of Al Batul Matrimony? You will need to sign in again to access your account.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="mt-8 flex flex-col gap-3">
+                    <AlertDialogCancel className="w-full h-14 rounded-2xl font-bold border-2 hover:bg-muted m-0">Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleLogout} 
+                      className="w-full h-14 rounded-2xl font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-xl m-0"
+                    >
+                      Log Out
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           ) : !loading && (
             <div className="flex gap-4">
@@ -272,7 +313,7 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="rounded-l-[3rem] border-none shadow-2xl p-0">
               <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
-              <div className="flex flex-col gap-6 py-12 px-8">
+              <div className="flex flex-col gap-6 py-12 px-8 h-full">
                 <Logo variant="full" size={48} className="mb-8" />
                 {isAdmin && (
                   <Link href="/admin" className="text-xl font-bold text-primary flex items-center gap-4 p-4 rounded-3xl bg-primary/5">
@@ -301,9 +342,27 @@ export function Navbar() {
                     </Link>
                   );
                 })}
-                <div className="mt-auto pt-12 space-y-4">
+                <div className="mt-auto space-y-4">
                   <Link href="/dashboard" className="block p-4 rounded-3xl bg-muted text-center font-bold">My Dashboard</Link>
-                  {user && <Button variant="destructive" className="w-full h-14 rounded-3xl font-bold shadow-xl" onClick={handleLogout}>Log Out</Button>}
+                  {user && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full h-14 rounded-3xl font-bold shadow-xl">Log Out</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-[2.5rem] p-8 max-w-[90vw] mx-auto">
+                        <AlertDialogHeader className="space-y-4">
+                          <AlertDialogTitle className="text-2xl font-headline text-center">Log Out</AlertDialogTitle>
+                          <AlertDialogDescription className="text-center text-muted-foreground">
+                            Are you sure you want to log out of Al Batul Matrimony? You will need to sign in again to access your account.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="mt-6 flex flex-col gap-3">
+                          <AlertDialogCancel className="w-full h-12 rounded-xl font-bold m-0">Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleLogout} className="w-full h-12 rounded-xl font-bold bg-destructive m-0">Log Out</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             </SheetContent>
