@@ -27,6 +27,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi
 } from "@/components/ui/carousel";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -67,12 +68,22 @@ export default function ProfileDetailPage() {
   const router = useRouter();
   const { user: currentUser } = useUser();
   const [isSending, setIsSending] = useState(false);
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
 
   const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id as string) : null, [db, id]);
   const { data: profile, loading: profileLoading } = useDoc(profileRef);
 
   const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
+
+  useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  }, [api]);
 
   const sentInterestQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
@@ -209,6 +220,7 @@ export default function ProfileDetailPage() {
   const canChat = isAdmin || (["Silver", "Gold", "Premium"].includes(currentPlan) && isMatched);
   const hasContactAccess = isAdmin || ["Gold", "Premium"].includes(currentPlan);
 
+  // Migration logic: Prefer photos array, fallback to photoUrl as a single-item array
   const displayPhotos = profile.photos?.length > 0 ? profile.photos : (profile.photoUrl ? [profile.photoUrl] : []);
 
   return (
@@ -221,7 +233,7 @@ export default function ProfileDetailPage() {
             <div className="sticky top-24 space-y-6">
               <div className="relative aspect-[3/4] overflow-hidden rounded-3xl shadow-2xl bg-muted border border-border">
                 {displayPhotos.length > 0 ? (
-                  <Carousel className="w-full h-full">
+                  <Carousel setApi={setApi} className="w-full h-full">
                     <CarouselContent>
                       {displayPhotos.map((photo: string, idx: number) => (
                         <CarouselItem key={idx}>
@@ -235,10 +247,15 @@ export default function ProfileDetailPage() {
                       <>
                         <CarouselPrevious className="left-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
                         <CarouselNext className="right-4 bg-white/20 backdrop-blur-md border-none text-white hover:bg-white/40" />
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1 z-10">
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
                           {displayPhotos.map((_: any, i: number) => (
-                             <div key={i} className={cn("h-1 w-6 rounded-full", i === 0 ? "bg-white" : "bg-white/30")} />
+                             <div key={i} className={cn("h-1.5 w-6 rounded-full transition-all duration-300", i === current ? "bg-white w-8 shadow-sm" : "bg-white/30")} />
                           ))}
+                        </div>
+                        <div className="absolute top-4 right-4 z-20">
+                          <Badge variant="outline" className="bg-black/20 backdrop-blur-md border-white/20 text-white font-bold text-[10px]">
+                            {current + 1} / {displayPhotos.length}
+                          </Badge>
                         </div>
                       </>
                     )}
@@ -268,7 +285,7 @@ export default function ProfileDetailPage() {
                     <div className="flex gap-4">
                       {isMatched ? (
                         <div className="flex flex-col flex-1 gap-2">
-                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-green-600 text-white border-none opacity-100">
+                          <Button disabled className="h-14 w-full gap-2 text-lg font-bold bg-green-600 text-white border-none opacity-100 shadow-md">
                             <CheckCircle2 className="h-5 w-5" /> Mutual Match
                           </Button>
                         </div>
@@ -286,7 +303,7 @@ export default function ProfileDetailPage() {
                         </div>
                       ) : existingReceivedInterest ? (
                         <Link href="/interests" className="flex-1">
-                          <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white">
+                          <Button className="h-14 w-full gap-2 text-lg font-bold bg-primary text-white shadow-lg">
                             {existingReceivedInterest.status === 'pending' ? 'Respond to Interest' : 'View Interaction'}
                           </Button>
                         </Link>
@@ -302,7 +319,7 @@ export default function ProfileDetailPage() {
                       
                       {(isMatched || canChat || isAdmin) && (
                         <Link href={canChat ? "/messages" : "/membership"} className={!canChat ? "opacity-70" : ""}>
-                          <Button variant="outline" size="icon" className="h-14 w-14">
+                          <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-2">
                             {canChat ? <MessageSquare className="h-6 w-6" /> : <Lock className="h-6 w-6 text-muted-foreground" />}
                           </Button>
                         </Link>
@@ -355,12 +372,12 @@ export default function ProfileDetailPage() {
               </h3>
               {hasContactAccess ? (
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4">
+                  <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4 transition-all hover:shadow-md">
                     <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Phone className="h-6 w-6" /></div>
                     <div><p className="text-[10px] font-bold text-muted-foreground">MOBILE</p><p className="font-bold">{profile.mobileNumber}</p></div>
                   </div>
                   {profile.whatsAppNumber && (
-                    <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4">
+                    <div className="rounded-2xl bg-white p-6 shadow-sm border border-border flex items-center gap-4 transition-all hover:shadow-md">
                       <div className="h-12 w-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center"><MessageCircle className="h-6 w-6" /></div>
                       <div><p className="text-[10px] font-bold text-muted-foreground">WHATSAPP</p><p className="font-bold">{profile.whatsAppNumber}</p></div>
                     </div>
@@ -370,8 +387,8 @@ export default function ProfileDetailPage() {
                 <div className="rounded-3xl bg-muted/30 border-2 border-dashed border-border p-10 text-center">
                   <Lock className="mx-auto mb-4 h-10 w-10 text-muted-foreground/30" />
                   <p className="text-lg font-bold mb-2">Details Locked</p>
-                  <p className="text-sm text-muted-foreground mb-6">Upgrade to Gold+ to unlock direct contact information.</p>
-                  <Link href="/membership"><Button className="gap-2 px-8 h-11 font-bold"><Crown className="h-4 w-4" /> Upgrade Now</Button></Link>
+                  <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Upgrade to Gold+ to unlock direct contact information and start your journey with intention.</p>
+                  <Link href="/membership"><Button className="gap-2 px-8 h-12 font-bold shadow-lg"><Crown className="h-4 w-4" /> Upgrade Now</Button></Link>
                 </div>
               )}
             </section>
