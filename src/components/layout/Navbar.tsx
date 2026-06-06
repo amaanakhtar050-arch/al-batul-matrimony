@@ -2,9 +2,9 @@
 'use client';
 
 import Link from "next/link";
-import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2, MessageCircle } from "lucide-react";
+import { User, Heart, MessageSquare, Search, Menu, Bell, LogOut, ShieldAlert, Lock, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -49,7 +49,6 @@ export function Navbar() {
 
   const { data: profile } = useDoc(profileRef);
 
-  // Optimized: Limit notifications fetch
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -124,16 +123,28 @@ export function Navbar() {
   };
 
   const navLinks = [
-    { href: "/discover", label: "Discover", icon: Search, restricted: true },
     { href: "/interests", label: "Interests", icon: Heart, restricted: true },
     { href: "/messages", label: "Messages", icon: MessageSquare, restricted: true },
   ];
+
+  const handleSearchClick = (e: React.MouseEvent) => {
+    const isDisabled = (!hasProfile || !isApproved) && !isAdmin;
+    if (isDisabled) {
+      e.preventDefault();
+      toast({
+        title: "Access Restricted",
+        description: !hasProfile ? "Complete profile first." : "Profile pending approval.",
+      });
+    } else {
+      router.push('/discover');
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <span className="font-headline text-2xl font-bold text-primary">Al Batul</span>
+          <span className="font-headline text-2xl font-bold text-primary tracking-tight">Al Batul</span>
         </Link>
 
         <div className="hidden items-center gap-6 md:flex">
@@ -172,12 +183,23 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {!loading && user ? (
             <>
+              {/* Search Trigger */}
+              <Button 
+                variant={pathname === '/discover' ? 'default' : 'ghost'} 
+                size="icon" 
+                className="h-9 w-9 rounded-full" 
+                onClick={handleSearchClick}
+                title="Search Members"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                  <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
                     <Bell className="h-5 w-5" />
                     {unreadNotificationsCount > 0 && (
                       <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm">
@@ -201,7 +223,7 @@ export function Navbar() {
                         >
                           <div className="flex-1 space-y-1">
                             <p className={cn("text-[11px]", !n.read ? "font-bold text-foreground" : "text-muted-foreground")}>{n.title || "Notification"}</p>
-                            <p className="text-[10px] text-muted-foreground line-clamp-2">{n.message || n.description || "Notification details..."}</p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">{n.message || "Notification details..."}</p>
                             <span className="text-[9px] text-muted-foreground opacity-70">{n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}</span>
                           </div>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}><Trash2 className="h-3 w-3" /></Button>
@@ -219,11 +241,11 @@ export function Navbar() {
 
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                  <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
                     <MessageSquare className="h-5 w-5" />
                     {(recentMatches.length > 0 || hasUnreadMessages) && (
                       <span className="absolute right-1 top-1 h-4 w-4 flex items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground shadow-sm">
-                        {recentMatches.length}
+                        {recentMatches.filter(m => !m.lastMessageRead && m.lastMessageSenderId !== user.uid).length || recentMatches.length}
                       </span>
                     )}
                   </Button>
@@ -270,7 +292,7 @@ export function Navbar() {
                    )}
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleLogout} title="Log Out">
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleLogout} title="Log Out">
                 <LogOut className="h-5 w-5" />
               </Button>
             </>
@@ -288,6 +310,9 @@ export function Navbar() {
             <SheetContent side="right">
               <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
               <div className="flex flex-col gap-6 py-8">
+                <Link href="/discover" className={cn("text-lg font-medium flex items-center gap-2", (!hasProfile || !isApproved) && !isAdmin && "opacity-50 cursor-not-allowed")} onClick={handleSearchClick as any}>
+                  <Search className="h-5 w-5" /> Search
+                </Link>
                 {navLinks.map((link) => {
                   const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
                   return (
@@ -302,7 +327,7 @@ export function Navbar() {
                         }
                       }}
                     >
-                      {isDisabled && <Lock className="h-4 w-4" />} {link.label}
+                      {isDisabled ? <Lock className="h-4 w-4" /> : <link.icon className="h-5 w-5" />} {link.label}
                     </Link>
                   );
                 })}

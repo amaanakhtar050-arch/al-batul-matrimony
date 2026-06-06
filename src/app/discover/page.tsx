@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Filter, Search, Lock, ShieldCheck, X, ChevronDown, UserSearch, Loader2 } from "lucide-react";
+import { Filter, Search, Lock, ShieldCheck, X, UserSearch, Loader2, MapPin, Briefcase, GraduationCap, Hash } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from "@/firebase";
 import { collection, query, where, doc, limit } from "firebase/firestore";
@@ -24,6 +24,10 @@ export default function DiscoverPage() {
   const [sectFilter, setSectFilter] = useState("all");
   const [maritalStatusFilter, setMaritalStatusFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [professionFilter, setProfessionFilter] = useState("");
+  const [educationFilter, setEducationFilter] = useState("");
+  const [memberIdFilter, setMemberIdFilter] = useState("");
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   
   const db = useFirestore();
@@ -43,13 +47,12 @@ export default function DiscoverPage() {
     }
   }, [user, authLoading, router]);
 
-  // Optimized: Only approved profiles appear in search results, limited for performance
   const approvedUsersQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(
       collection(db, 'users'),
       where('status', '==', 'approved'),
-      limit(40)
+      limit(100)
     );
   }, [db]);
 
@@ -63,15 +66,22 @@ export default function DiscoverPage() {
       const matchesAge = p.age >= ageRange[0] && p.age <= ageRange[1];
       const matchesSect = sectFilter === "all" || p.sect?.toLowerCase() === sectFilter.toLowerCase();
       const matchesMarital = maritalStatusFilter === "all" || p.maritalStatus?.toLowerCase() === maritalStatusFilter.toLowerCase();
-      const matchesCity = !cityFilter || p.city?.toLowerCase().includes(cityFilter.toLowerCase());
+      
+      const cityMatch = !cityFilter || p.city?.toLowerCase().includes(cityFilter.toLowerCase());
+      const stateMatch = !stateFilter || p.state?.toLowerCase().includes(stateFilter.toLowerCase());
+      const professionMatch = !professionFilter || p.occupation?.toLowerCase().includes(professionFilter.toLowerCase());
+      const educationMatch = !educationFilter || p.education?.toLowerCase().includes(educationFilter.toLowerCase());
+      const memberIdMatch = !memberIdFilter || p.id?.toLowerCase().includes(memberIdFilter.toLowerCase());
+      
       const matchesSearch = !searchTerm || 
         p.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.occupation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.education?.toLowerCase().includes(searchTerm.toLowerCase());
+        p.education?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.id?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      return matchesAge && matchesSect && matchesMarital && matchesCity && matchesSearch;
+      return matchesAge && matchesSect && matchesMarital && cityMatch && stateMatch && professionMatch && educationMatch && memberIdMatch && matchesSearch;
     });
-  }, [profiles, ageRange, sectFilter, maritalStatusFilter, cityFilter, searchTerm, user]);
+  }, [profiles, ageRange, sectFilter, maritalStatusFilter, cityFilter, stateFilter, professionFilter, educationFilter, memberIdFilter, searchTerm, user]);
 
   const resetFilters = () => {
     setAgeRange([18, 60]);
@@ -79,12 +89,20 @@ export default function DiscoverPage() {
     setSectFilter("all");
     setMaritalStatusFilter("all");
     setCityFilter("");
+    setStateFilter("");
+    setProfessionFilter("");
+    setEducationFilter("");
+    setMemberIdFilter("");
   };
 
   const activeFilterCount = [
     sectFilter !== "all",
     maritalStatusFilter !== "all",
     cityFilter !== "",
+    stateFilter !== "",
+    professionFilter !== "",
+    educationFilter !== "",
+    memberIdFilter !== "",
     searchTerm !== "",
     ageRange[0] !== 18 || ageRange[1] !== 60
   ].filter(Boolean).length;
@@ -136,58 +154,85 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8 lg:px-8">
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="mb-2 text-3xl font-bold font-headline text-primary flex items-center gap-2">
-              Discover Matches <ShieldCheck className="h-6 w-6 text-primary/40" />
-            </h1>
-            <p className="text-muted-foreground">Browse verified profiles looking for a life partner.</p>
-          </div>
-          <div className="flex items-center gap-2">
+      <main className="container mx-auto px-4 py-8 lg:px-8 max-w-7xl">
+        <header className="mb-12">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div>
+              <h1 className="text-4xl font-bold font-headline text-primary tracking-tight">Search Members</h1>
+              <p className="text-muted-foreground mt-1 font-medium">Find your life partner among verified profiles.</p>
+            </div>
             <Button 
-              variant="outline" 
+              variant={isFilterVisible ? "secondary" : "outline"}
               onClick={() => setIsFilterVisible(!isFilterVisible)}
-              className="gap-2 font-bold h-11"
+              className="gap-2 font-bold h-12 rounded-2xl shadow-sm self-start md:self-center"
             >
-              <Filter className="h-4 w-4" />
-              Filters {activeFilterCount > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white">{activeFilterCount}</Badge>}
+              <Filter className="h-5 w-5" />
+              Advanced Filters {activeFilterCount > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white text-[10px]">{activeFilterCount}</Badge>}
             </Button>
+          </div>
+
+          <div className="relative group">
+            <Search className="absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input 
+              placeholder="Search by name, ID, or profession..." 
+              className="h-16 pl-14 pr-6 text-lg rounded-[2rem] border-none shadow-2xl bg-white focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </header>
 
         {isFilterVisible && (
-          <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="rounded-3xl bg-white p-8 shadow-xl border border-border/50 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-primary"></div>
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-bold font-headline flex items-center gap-2">
-                   <UserSearch className="h-5 w-5 text-primary" /> Advanced Search Filters
+          <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+            <Card className="rounded-[2.5rem] bg-white p-8 shadow-2xl border-none relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-primary/20"></div>
+              <div className="flex items-center justify-between mb-10">
+                <h3 className="text-2xl font-bold font-headline flex items-center gap-2 text-primary">
+                   <UserSearch className="h-6 w-6" /> Detailed Filters
                 </h3>
-                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground hover:text-primary">
-                  <X className="h-4 w-4 mr-2" /> Reset All
+                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground hover:text-destructive font-bold">
+                  <X className="h-4 w-4 mr-2" /> Reset Filters
                 </Button>
               </div>
 
-              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Keywords</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="e.g. Doctor, Software..." className="pl-10 h-11" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                  </div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
+                    <MapPin className="h-3 w-3" /> City
+                  </label>
+                  <Input placeholder="Search city..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</label>
-                  <Input placeholder="Enter city..." className="h-11" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} />
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
+                    <MapPin className="h-3 w-3" /> State
+                  </label>
+                  <Input placeholder="Search state..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sect</label>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
+                    <Briefcase className="h-3 w-3" /> Profession
+                  </label>
+                  <Input placeholder="Doctor, Engineer..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={professionFilter} onChange={(e) => setProfessionFilter(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
+                    <GraduationCap className="h-3 w-3" /> Education
+                  </label>
+                  <Input placeholder="Degree, Major..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={educationFilter} onChange={(e) => setEducationFilter(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
+                    <Hash className="h-3 w-3" /> Member ID
+                  </label>
+                  <Input placeholder="ID prefix..." className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all" value={memberIdFilter} onChange={(e) => setMemberIdFilter(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Religious Sect</label>
                   <Select onValueChange={setSectFilter} value={sectFilter}>
-                    <SelectTrigger className="h-11"><SelectValue placeholder="All Sects" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Sects" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Sects</SelectItem>
                       {SECT_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -195,9 +240,9 @@ export default function DiscoverPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Marital Status</label>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Marital Status</label>
                   <Select onValueChange={setMaritalStatusFilter} value={maritalStatusFilter}>
-                    <SelectTrigger className="h-11"><SelectValue placeholder="All Status" /></SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none focus-visible:bg-white transition-all"><SelectValue placeholder="All Status" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       {MARITAL_STATUS_OPTIONS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
@@ -206,25 +251,25 @@ export default function DiscoverPage() {
                 </div>
               </div>
 
-              <div className="mt-10 max-w-xl mx-auto space-y-4">
+              <div className="mt-12 max-w-2xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Age Range</label>
-                  <span className="text-sm font-bold text-primary">{ageRange[0]} — {ageRange[1]} years</span>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Age Range</label>
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-4 py-1.5 rounded-full">{ageRange[0]} — {ageRange[1]} years</span>
                 </div>
                 <Slider min={18} max={80} step={1} value={ageRange} onValueChange={setAgeRange} className="py-4" />
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
         {profilesLoading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-[450px] rounded-[2.5rem] bg-muted animate-pulse" />
+              <div key={i} className="h-[480px] rounded-[2.5rem] bg-muted animate-pulse" />
             ))}
           </div>
         ) : filteredProfiles.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProfiles.map((profile: any) => (
               <ProfileCard 
                 key={profile.id} 
@@ -245,10 +290,13 @@ export default function DiscoverPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-border/50">
-            <Search className="h-10 w-10 text-muted-foreground/30 mb-6" />
-            <p className="text-xl font-medium text-muted-foreground">No matching approved profiles found.</p>
-            <Button variant="outline" className="mt-8 font-bold" onClick={resetFilters}>Reset All Filters</Button>
+          <div className="flex flex-col items-center justify-center py-32 text-center bg-white rounded-[3rem] shadow-sm border border-border/40">
+            <div className="h-24 w-24 rounded-[2rem] bg-muted/30 flex items-center justify-center mb-8">
+               <Search className="h-12 w-12 text-muted-foreground/20" />
+            </div>
+            <h3 className="text-2xl font-headline font-bold text-primary mb-2">No results found</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto mb-10 font-medium">Try broadening your filters or using different keywords to find more potential matches.</p>
+            <Button variant="outline" className="font-bold h-12 px-8 rounded-2xl" onClick={resetFilters}>Clear All Filters</Button>
           </div>
         )}
       </main>
