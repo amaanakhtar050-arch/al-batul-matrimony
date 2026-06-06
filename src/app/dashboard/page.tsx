@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -148,12 +147,14 @@ export default function DashboardPage() {
     reader.onloadend = () => {
       const base64String = reader.result as string;
       const userRef = doc(db, 'users', user.uid);
+      
+      // Update primary photo AND push to gallery array
       updateDoc(userRef, { 
         photoUrl: base64String, 
         photos: arrayUnion(base64String),
         updatedAt: serverTimestamp() 
       })
-        .then(() => toast({ title: "Photo Updated" }))
+        .then(() => toast({ title: "Photo Updated", description: "Your photo has been added to your gallery." }))
         .finally(() => setIsUploadingPhoto(false));
     };
     reader.readAsDataURL(file);

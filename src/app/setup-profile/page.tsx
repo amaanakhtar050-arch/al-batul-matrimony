@@ -86,6 +86,11 @@ export default function SetupProfilePage() {
           const data = docSnap.data();
           setExistingProfileData(data);
           setIsEditing(true);
+          
+          // Migration: if photoUrl exists but photos is empty, populate photos
+          const initialPhotos = data.photos || (data.photoUrl ? [data.photoUrl] : []);
+          const initialPrimary = data.photoUrl || (initialPhotos.length > 0 ? initialPhotos[0] : '');
+
           setFormData(prev => ({
             ...prev,
             ...data,
@@ -106,8 +111,8 @@ export default function SetupProfilePage() {
             state: data.state || '',
             country: data.country || '',
             languagesSpoken: data.languagesSpoken?.join(', ') || '',
-            photoUrl: data.photoUrl || '',
-            photos: data.photos || [],
+            photoUrl: initialPrimary,
+            photos: initialPhotos,
             idPhotoUrl: data.idPhotoUrl || '',
             selfiePhotoUrl: data.selfiePhotoUrl || '',
             about: data.about || '',
@@ -310,7 +315,7 @@ export default function SetupProfilePage() {
                       Profile Gallery
                       <Badge variant="outline" className="text-[10px]">{formData.photos.length}/{planLimit}</Badge>
                     </CardTitle>
-                    <CardDescription>Upload up to {planLimit} photos. Star one as primary.</CardDescription>
+                    <CardDescription>Upload up to {planLimit} photos. Mark one as primary.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
