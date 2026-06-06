@@ -16,9 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 
-/**
- * A helper component to display a user's avatar fetching the latest photo from Firestore.
- */
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
   const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
@@ -52,26 +49,26 @@ export function Navbar() {
 
   const { data: profile } = useDoc(profileRef);
 
-  // System Notifications
+  // Optimized: Limit notifications fetch
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, 'users', user.uid, 'notifications'),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(20)
     );
   }, [db, user]);
 
   const { data: notifications } = useCollection(notificationsQuery);
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // Real-time Matches: Use dual-query strategy for reliability
   const sentMatchesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "interests"),
       where("fromUserId", "==", user.uid),
-      where("status", "==", "accepted")
+      where("status", "==", "accepted"),
+      limit(20)
     );
   }, [db, user]);
 
@@ -80,7 +77,8 @@ export function Navbar() {
     return query(
       collection(db, "interests"),
       where("toUserId", "==", user.uid),
-      where("status", "==", "accepted")
+      where("status", "==", "accepted"),
+      limit(20)
     );
   }, [db, user]);
 
@@ -109,18 +107,8 @@ export function Navbar() {
     if (!auth) return;
     try {
       await signOut(auth);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully signed out.",
-      });
       router.push('/');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Logout failed",
-        description: error.message,
-      });
-    }
+    } catch (error: any) {}
   };
 
   const handleMarkAsRead = (id: string) => {
@@ -148,7 +136,6 @@ export function Navbar() {
           <span className="font-headline text-2xl font-bold text-primary">Al Batul</span>
         </Link>
 
-        {/* Desktop Menu */}
         <div className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => {
             const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
@@ -168,7 +155,7 @@ export function Navbar() {
                     e.preventDefault();
                     toast({
                       title: "Access Restricted",
-                      description: !hasProfile ? "Please complete your profile first." : "Your profile is pending admin approval.",
+                      description: !hasProfile ? "Complete profile first." : "Profile pending approval.",
                     });
                   }
                 }}
@@ -178,11 +165,9 @@ export function Navbar() {
               </Link>
             );
           })}
-          
           {isAdmin && (
             <Link href="/admin" className="flex items-center gap-1.5 text-sm font-bold text-primary hover:opacity-80">
-              <ShieldAlert className="h-4 w-4" />
-              Admin
+              <ShieldAlert className="h-4 w-4" /> Admin
             </Link>
           )}
         </div>
@@ -190,7 +175,6 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
-              {/* Notifications Bell */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-9 w-9">
@@ -212,29 +196,15 @@ export function Navbar() {
                       notifications.map((n: any) => (
                         <div 
                           key={n.id} 
-                          className={cn(
-                            "p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors cursor-pointer hover:bg-muted/20",
-                            !n.read ? "bg-primary/5 border-l-4 border-l-primary" : "bg-transparent"
-                          )}
+                          className={cn("p-4 border-b text-xs flex justify-between items-start gap-4 transition-colors cursor-pointer hover:bg-muted/20", !n.read ? "bg-primary/5 border-l-4 border-l-primary" : "bg-transparent")}
                           onClick={() => !n.read && handleMarkAsRead(n.id)}
                         >
                           <div className="flex-1 space-y-1">
-                            <p className={cn("text-[11px]", !n.read ? "font-bold text-foreground" : "text-muted-foreground")}>
-                              {n.title || "Notification"}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground line-clamp-2">
-                              {n.message || n.description || "Notification details..."}
-                            </p>
-                            <span className="text-[9px] text-muted-foreground opacity-70">
-                              {n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                            </span>
+                            <p className={cn("text-[11px]", !n.read ? "font-bold text-foreground" : "text-muted-foreground")}>{n.title || "Notification"}</p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">{n.message || n.description || "Notification details..."}</p>
+                            <span className="text-[9px] text-muted-foreground opacity-70">{n.createdAt?.toDate ? formatDistanceToNow(n.createdAt.toDate(), { addSuffix: true }) : 'Just now'}</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteNotification(n.id);
-                          }}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={(e) => { e.stopPropagation(); handleDeleteNotification(n.id); }}><Trash2 className="h-3 w-3" /></Button>
                         </div>
                       ))
                     ) : (
@@ -247,7 +217,6 @@ export function Navbar() {
                 </PopoverContent>
               </Popover>
 
-              {/* Messages Dropdown */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative h-9 w-9">
@@ -269,28 +238,15 @@ export function Navbar() {
                       recentMatches.map((match: any) => {
                         const partnerId = match.fromUserId === user?.uid ? match.toUserId : match.fromUserId;
                         const partnerName = match.fromUserId === user?.uid ? match.toUserName : match.fromUserName;
-                        
                         return (
-                          <div 
-                            key={match.id} 
-                            className="p-4 border-b flex items-center gap-3 hover:bg-muted/20 cursor-pointer transition-colors"
-                            onClick={() => {
-                              router.push('/messages');
-                            }}
-                          >
+                          <div key={match.id} className="p-4 border-b flex items-center gap-3 hover:bg-muted/20 cursor-pointer transition-colors" onClick={() => router.push('/messages')}>
                             <UserAvatar userId={partnerId} className="h-10 w-10 shrink-0 border border-primary/10" />
                             <div className="flex-1 overflow-hidden">
                               <div className="flex justify-between items-center mb-0.5">
                                 <p className="font-bold text-xs truncate">{partnerName}</p>
-                                {match.updatedAt?.toDate && (
-                                  <span className="text-[9px] text-muted-foreground">
-                                    {formatDistanceToNow(match.updatedAt.toDate(), { addSuffix: false })}
-                                  </span>
-                                )}
+                                {match.updatedAt?.toDate && <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(match.updatedAt.toDate(), { addSuffix: false })}</span>}
                               </div>
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                {match.lastMessage || "Start a conversation..."}
-                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">{match.lastMessage || "Start a conversation..."}</p>
                             </div>
                           </div>
                         );
@@ -305,7 +261,6 @@ export function Navbar() {
                 </PopoverContent>
               </Popover>
 
-              {/* Profile Avatar */}
               <Link href="/dashboard">
                 <Button variant={pathname === '/dashboard' ? 'default' : 'ghost'} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full p-0 border border-primary/20 bg-muted">
                    {profile?.photoUrl ? (
@@ -315,34 +270,23 @@ export function Navbar() {
                    )}
                 </Button>
               </Link>
-
-              {/* Logout Button */}
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleLogout} title="Log Out">
                 <LogOut className="h-5 w-5" />
               </Button>
             </>
           ) : !loading && (
             <div className="flex gap-2">
-              <Link href="/login">
-                <Button variant="ghost">Login</Button>
-              </Link>
-              <Link href="/register">
-                <Button>Join Al Batul</Button>
-              </Link>
+              <Link href="/login"><Button variant="ghost">Login</Button></Link>
+              <Link href="/register"><Button>Join Al Batul</Button></Link>
             </div>
           )}
 
-          {/* Mobile Menu Trigger */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6" />
-              </Button>
+              <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-6 w-6" /></Button>
             </SheetTrigger>
             <SheetContent side="right">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Navigation Menu</SheetTitle>
-              </SheetHeader>
+              <SheetHeader className="sr-only"><SheetTitle>Navigation Menu</SheetTitle></SheetHeader>
               <div className="flex flex-col gap-6 py-8">
                 {navLinks.map((link) => {
                   const isDisabled = link.restricted && (!hasProfile || !isApproved) && !isAdmin;
@@ -350,35 +294,23 @@ export function Navbar() {
                     <Link 
                       key={link.href}
                       href={isDisabled ? "#" : link.href} 
-                      className={cn(
-                        "text-lg font-medium flex items-center gap-2",
-                        isDisabled && "opacity-50 cursor-not-allowed"
-                      )}
+                      className={cn("text-lg font-medium flex items-center gap-2", isDisabled && "opacity-50 cursor-not-allowed")}
                       onClick={(e) => {
                         if (isDisabled) {
                           e.preventDefault();
-                          toast({
-                            title: "Access Restricted",
-                            description: !hasProfile ? "Please complete your profile first." : "Your profile is pending admin approval.",
-                          });
+                          toast({ title: "Access Restricted" });
                         }
                       }}
                     >
-                      {isDisabled && <Lock className="h-4 w-4" />}
-                      {link.label}
+                      {isDisabled && <Lock className="h-4 w-4" />} {link.label}
                     </Link>
                   );
                 })}
                 {isAdmin && <Link href="/admin" className="text-lg font-bold text-primary">Admin Panel</Link>}
-                <Link href="/notifications" className="text-lg font-medium">Notifications {unreadNotificationsCount > 0 && `(${unreadNotificationsCount})`}</Link>
+                <Link href="/notifications" className="text-lg font-medium">Notifications</Link>
                 <Link href="/messages" className="text-lg font-medium">Messages</Link>
                 <Link href="/dashboard" className="text-lg font-medium">My Dashboard</Link>
-                <Link href="/membership" className="text-lg font-medium">Membership</Link>
-                {user && (
-                   <Button variant="destructive" className="w-full mt-4" onClick={handleLogout}>
-                     Logout
-                   </Button>
-                )}
+                {user && <Button variant="destructive" className="w-full mt-4" onClick={handleLogout}>Logout</Button>}
               </div>
             </SheetContent>
           </Sheet>

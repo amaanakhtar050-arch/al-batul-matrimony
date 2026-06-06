@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -22,7 +23,8 @@ import {
   Camera,
   Loader2,
   Eye,
-  User
+  User,
+  AlertCircle
 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { intelligentMatchmakerSuggestions, IntelligentMatchmakerSuggestionsOutput } from "@/ai/flows/intelligent-matchmaker-suggestions";
@@ -34,9 +36,6 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-/**
- * A helper component to display a user's avatar fetching the latest photo from Firestore.
- */
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
   const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
@@ -90,10 +89,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchSuggestions() {
-      if (!profile || !db || profile.status !== 'approved') return;
+      // Optimized: Prevent redundant AI calls
+      if (!profile || !db || profile.status !== 'approved' || aiSuggestions) return;
+      
       setLoadingSuggestions(true);
       setAiError(null);
       try {
+        // Optimized: Only fetch small batch of recent approved users for AI scanning
         const q = query(collection(db, 'users'), where('status', '==', 'approved'), limit(10));
         const snapshot = await getDocs(q);
         const availableProfiles = snapshot.docs
@@ -123,19 +125,19 @@ export default function DashboardPage() {
           setAiSuggestions(result);
         }
       } catch (err) {
-        console.error("AI Error:", err);
         setAiError("AI suggestions are temporarily unavailable. Please try again later.");
       } finally {
         setLoadingSuggestions(false);
       }
     }
-    if (profile && profile.status === 'approved') fetchSuggestions();
-  }, [profile, db, user]);
+    if (profile && profile.status === 'approved' && !aiSuggestions) fetchSuggestions();
+  }, [profile?.id, profile?.status, db, user]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !db || !user) return;
 
+    // Optimized: Enforce file size limit for performance
     if (file.size > 2 * 1024 * 1024) {
       toast({ variant: "destructive", title: "File too large", description: "Please upload an image smaller than 2MB." });
       return;
@@ -146,13 +148,12 @@ export default function DashboardPage() {
     reader.onloadend = () => {
       const base64String = reader.result as string;
       const userRef = doc(db, 'users', user.uid);
-      // Synchronize primary photo and gallery
       updateDoc(userRef, { 
         photoUrl: base64String, 
         photos: arrayUnion(base64String),
         updatedAt: serverTimestamp() 
       })
-        .then(() => toast({ title: "Photo Updated", description: "Your profile picture has been updated instantly." }))
+        .then(() => toast({ title: "Photo Updated" }))
         .finally(() => setIsUploadingPhoto(false));
     };
     reader.readAsDataURL(file);
@@ -179,7 +180,6 @@ export default function DashboardPage() {
         <Navbar />
         <main className="container mx-auto flex items-center justify-center px-4 py-20">
           <Card className="w-full max-w-md text-center border-none shadow-2xl rounded-[3rem] p-12 overflow-hidden bg-white">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-secondary"></div>
             <CardHeader>
               <UserPlus className="mx-auto h-20 w-20 text-primary/20 mb-6" />
               <CardTitle className="text-4xl font-headline text-primary">Join the Community</CardTitle>
@@ -213,7 +213,6 @@ export default function DashboardPage() {
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="h-8 w-8 text-white" /></div>
                 {isUploadingPhoto && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-8 w-8 text-white animate-spin" /></div>}
               </div>
-              <div className="absolute -bottom-2 -right-2 h-10 w-10 bg-primary text-white rounded-2xl flex items-center justify-center shadow-xl"><Camera className="h-5 w-5" /></div>
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
             </div>
             <div>
@@ -231,13 +230,11 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          
           <Link href="/setup-profile"><Button className="h-14 px-8 gap-3 font-bold shadow-xl rounded-2xl bg-white text-primary hover:bg-muted border border-border"><Edit2 className="h-5 w-5" /> Edit Profile</Button></Link>
         </div>
 
         <div className="grid gap-10 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-10">
-            {/* AI Matches */}
             <Card className={`border-none shadow-2xl overflow-hidden rounded-[3rem] ${profile.status === 'approved' ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
               <CardHeader className="p-8 pb-4">
                 <CardTitle className="flex items-center gap-3 text-3xl font-headline">
@@ -249,7 +246,6 @@ export default function DashboardPage() {
                   <div className="py-20 text-center opacity-40">
                     <Lock className="mx-auto mb-6 h-16 w-16" />
                     <p className="text-xl font-bold">Verify to Unlock Matches</p>
-                    <p className="text-sm mt-2">Personalized AI matching requires an approved profile.</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -268,19 +264,18 @@ export default function DashboardPage() {
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-16 opacity-40"><Heart className="mx-auto h-12 w-12 mb-4" /><p className="text-xl font-bold">Discovering compatibility...</p></div>
+                      <div className="text-center py-16 opacity-40"><Heart className="mx-auto h-12 w-12 mb-4" /><p className="text-xl font-bold">Finding compatibility...</p></div>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
             <section>
                <h2 className="text-2xl font-bold font-headline mb-6 text-primary px-2">Navigation</h2>
                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                   {[
-                    { href: "/setup-profile", icon: Edit2, label: "Edit Gallery", color: "bg-primary/10 text-primary" },
+                    { href: "/setup-profile", icon: Edit2, label: "Gallery", color: "bg-primary/10 text-primary" },
                     { href: `/profiles/${user.uid}`, icon: Eye, label: "Preview", color: "bg-secondary/10 text-secondary-foreground" },
                     { href: "/membership", icon: Crown, label: "Subscription", color: "bg-orange-100 text-orange-600" },
                     { href: "/discover", icon: Search, label: "Search", color: "bg-blue-100 text-blue-600" }
@@ -299,7 +294,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-10">
-            {/* Profile Score */}
             <Card className="border-none shadow-2xl bg-white overflow-hidden rounded-[3rem]">
                <CardHeader className="p-8 pb-4">
                   <div className="flex items-center justify-between mb-4">
@@ -309,20 +303,13 @@ export default function DashboardPage() {
                   <Progress value={completionPercentage} className="h-3 bg-muted rounded-full" />
                </CardHeader>
                <CardContent className="p-8 pt-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                    A complete profile with a full gallery is 80% more likely to find a match.
-                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">A complete profile is 80% more likely to find a match.</p>
                   {completionPercentage < 100 && (
-                    <Link href="/setup-profile">
-                      <Button variant="outline" className="w-full text-sm font-bold h-12 gap-2 rounded-2xl border-2">
-                         Complete Profile <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <Link href="/setup-profile"><Button variant="outline" className="w-full text-sm font-bold h-12 gap-2 rounded-2xl border-2">Complete Profile <ArrowRight className="h-4 w-4" /></Button></Link>
                   )}
                </CardContent>
             </Card>
 
-            {/* Membership */}
             <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden">
               <CardHeader className="p-8 bg-muted/30 border-b">
                 <CardTitle className="text-2xl font-headline text-primary">Membership</CardTitle>
