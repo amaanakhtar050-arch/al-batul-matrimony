@@ -45,12 +45,16 @@ const IntelligentMatchmakerSuggestionsOutputSchema = z.object({
 });
 export type IntelligentMatchmakerSuggestionsOutput = z.infer<typeof IntelligentMatchmakerSuggestionsOutputSchema>;
 
+/**
+ * Defines the AI prompt for matchmaking suggestions.
+ * Uses Handlebars templating to inject user and available profile data.
+ */
 const prompt = ai.definePrompt({
   name: 'intelligentMatchmakerPrompt',
   input: { schema: IntelligentMatchmakerSuggestionsInputSchema },
   output: { schema: IntelligentMatchmakerSuggestionsOutputSchema },
-  prompt: `You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to suggest highly compatible profiles based on the user's profile and preferences, considering sect, education, lifestyle, city, marital status, and age.
-
+  system: "You are an expert matrimonial matchmaker for Al Batul Matrimony. Your goal is to suggest highly compatible profiles based on the user's profile and preferences, considering sect, education, lifestyle, city, marital status, and age.",
+  prompt: `
 User's Profile:
 Sect: {{{userProfile.sect}}}
 Education: {{{userProfile.education}}}
@@ -71,9 +75,12 @@ Age: {{{age}}}
 ---
 {{/each}}
 
-Based on the user's profile, carefully review the available profiles and suggest up to 3 most compatible matches. For each suggestion, provide a brief reason for its compatibility. Respond only with the JSON object.`,
+Based on the user's profile, carefully review the available profiles and suggest up to 3 most compatible matches. For each suggestion, provide a brief reason for its compatibility.`,
 });
 
+/**
+ * Genkit Flow for generating intelligent matchmaker suggestions.
+ */
 const intelligentMatchmakerSuggestionsFlow = ai.defineFlow(
   {
     name: 'intelligentMatchmakerSuggestionsFlow',
@@ -89,6 +96,9 @@ const intelligentMatchmakerSuggestionsFlow = ai.defineFlow(
   }
 );
 
+/**
+ * Server-side wrapper function to invoke the matchmaking suggestions flow.
+ */
 export async function intelligentMatchmakerSuggestions(input: IntelligentMatchmakerSuggestionsInput): Promise<IntelligentMatchmakerSuggestionsOutput> {
   return intelligentMatchmakerSuggestionsFlow(input);
 }
