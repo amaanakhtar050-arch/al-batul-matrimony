@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   XCircle,
   FileText,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -68,8 +69,16 @@ export default function AdminDashboard() {
   // Security: Redirect non-admins to dashboard immediately
   useEffect(() => {
     if (!authLoading && !profileLoading) {
+      // Diagnostic logging for the user to see in their browser console
+      console.log('[Admin Guard] User authenticated:', !!user);
+      console.log('[Admin Guard] User UID:', user?.uid);
+      console.log('[Admin Guard] User Profile Role:', profile?.role);
+
       if (!user || profile?.role !== "admin") {
+        console.warn('[Admin Guard] Unauthorized access. Redirecting to /dashboard.');
         router.replace("/dashboard");
+      } else {
+        console.log('[Admin Guard] Access granted.');
       }
     }
   }, [user, profile, authLoading, profileLoading, router]);
@@ -223,7 +232,16 @@ export default function AdminDashboard() {
   }
 
   // Final gate to prevent flash of content
-  if (!user || profile?.role !== "admin") return null;
+  if (!user || profile?.role !== "admin") {
+    return (
+       <div className="flex flex-col h-screen items-center justify-center p-4 text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Unauthorized</h2>
+          <p className="text-muted-foreground mb-6">You do not have administrative privileges to access this page.</p>
+          <Button onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
+       </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
