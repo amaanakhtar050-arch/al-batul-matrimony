@@ -1,12 +1,12 @@
 {
   "name": "Al Batul Matrimony",
   "short_name": "Al Batul",
-  "description": "Refined and purposeful matchmaking sanctuary for the global Muslim community.",
+  "description": "A refined sanctuary for the global Muslim community to discover life partners.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#f2f7f5",
+  "background_color": "#ffffff",
   "theme_color": "#478572",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=AlBatul",
@@ -17,7 +17,8 @@
     {
       "src": "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=AlBatul",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
