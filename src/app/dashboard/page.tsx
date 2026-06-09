@@ -39,7 +39,11 @@ import { compressImage, dataURLToBlob } from "@/lib/image-utils";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
-  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const userRef = useMemoFirebase(() => {
+    if (!db || !userId) return null;
+    return doc(db, 'users', userId);
+  }, [db, userId]);
+  
   const { data: profile } = useDoc(userRef);
   
   return (

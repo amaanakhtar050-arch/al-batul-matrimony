@@ -108,15 +108,22 @@ export default function ProfileDetailClient({ id }: { id: string }) {
   const [aiScore, setAiScore] = useState<CalculateCompatibilityOutput | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
 
-  const profileRef = useMemoFirebase(() => id ? doc(db!, 'users', id) : null, [db, id]);
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !id) return null;
+    return doc(db, 'users', id);
+  }, [db, id]);
+  
   const { data: profile, loading: profileLoading } = useDoc(profileRef);
 
-  const viewerProfileRef = useMemoFirebase(() => (db && currentUser) ? doc(db, 'users', currentUser.uid) : null, [db, currentUser]);
+  const viewerProfileRef = useMemoFirebase(() => {
+    if (!db || !currentUser) return null;
+    return doc(db, 'users', currentUser.uid);
+  }, [db, currentUser]);
+  
   const { data: viewerProfile, loading: viewerLoading } = useDoc(viewerProfileRef);
 
   const blockQuery = useMemoFirebase(() => {
     if (!db || !currentUser || !id) return null;
-    // Fix: Using the modern 'or' and 'and' operators to avoid multiple 'in' clauses violation
     return query(
       collection(db, "blocks"),
       or(

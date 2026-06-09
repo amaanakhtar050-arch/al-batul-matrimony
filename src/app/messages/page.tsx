@@ -37,8 +37,13 @@ import { ActivityStatus } from "@/components/profile/ActivityStatus";
 
 function UserAvatar({ userId, className }: { userId: string, className?: string }) {
   const db = useFirestore();
-  const userRef = useMemoFirebase(() => userId ? doc(db!, 'users', userId) : null, [db, userId]);
+  const userRef = useMemoFirebase(() => {
+    if (!db || !userId) return null;
+    return doc(db, 'users', userId);
+  }, [db, userId]);
+  
   const { data: profile } = useDoc(userRef);
+  
   return (
     <div className={cn("relative overflow-hidden rounded-[1.25rem] md:rounded-[1.5rem] bg-muted shadow-md border-2 border-white", className)}>
       {profile?.photoUrl ? <Image src={profile.photoUrl} alt="Avatar" fill className="object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground/30 bg-muted"><User className="h-2/3 w-2/3" /></div>}
