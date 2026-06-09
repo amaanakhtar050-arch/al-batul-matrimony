@@ -63,7 +63,11 @@ export default function MembershipPage() {
   const { user } = useUser();
   const db = useFirestore();
   
-  const userRef = useMemoFirebase(() => user ? doc(db!, 'users', user.uid) : null, [db, user]);
+  const userRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+  
   const { data: profile } = useDoc(userRef);
 
   const currentPlan = profile?.membership?.plan || 'Free';

@@ -48,10 +48,18 @@ function PaymentContent() {
   const planId = searchParams.get('plan');
   const selectedPlan = useMemo(() => PLANS.find(p => p.id === planId), [planId]);
 
-  const userRef = useMemoFirebase(() => user ? doc(db!, 'users', user.uid) : null, [db, user]);
+  const userRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+  
   const { data: profile } = useDoc(userRef);
 
-  const platformSettingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'platform') : null, [db]);
+  const platformSettingsRef = useMemoFirebase(() => {
+    if (!db) return null;
+    return doc(db, 'settings', 'platform');
+  }, [db]);
+  
   const { data: settings } = useDoc(platformSettingsRef);
 
   const activeUpiId = settings?.upiId || "amaanakhtar050-1@oksbi";

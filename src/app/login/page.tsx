@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -17,13 +16,7 @@ import { LogIn, KeyRound, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-
-// PRE-DEFINED ADMINISTRATORS
-const SUPER_ADMINS = [
-  "amaanakhtar050@gmail.com",
-  "reebaamaanbhangaria@gmail.com",
-  "admin@albatul.com"
-];
+import { SUPER_ADMIN_EMAILS } from '@/lib/constants';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -59,7 +52,7 @@ export default function LoginPage() {
       const userSnap = await getDoc(userRef);
       
       const lowerEmail = user.email?.toLowerCase() || "";
-      const isAdminEmail = SUPER_ADMINS.some(adminEmail => lowerEmail === adminEmail.toLowerCase());
+      const isAdminEmail = SUPER_ADMIN_EMAILS.some(adminEmail => lowerEmail === adminEmail.toLowerCase());
 
       if (!userSnap.exists()) {
         const initialProfile = {
